@@ -1,0 +1,13 @@
+export * from "./empresa.interface";
+export * from "./colaborador.interface";
+export * from "./cliente.interface";
+export * from "./demanda.interface";
+export * from "./projeto.interface";
+export * from "./produto.interface";
+export * from "./squad.interface";
+export * from "./alocacao.interface";
+export * from "./tarefa.interface";
+export * from "./marco-projeto.interface";
+export * from "./acompanhamento-projeto.interface";
+export * from "./tenant.interface";
+export * from "./planejamento.interface";export * from "./planejamento.interface";
