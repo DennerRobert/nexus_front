@@ -1,93 +1,128 @@
-# SGPI - Frontend
+# SGPI - Sistema de Gestão de Portfólio Integrado
 
+Sistema corporativo para gestão integrada do ciclo de vida de iniciativas, incluindo demandas, projetos, produtos, squads e alocação de recursos humanos.
 
+## Stack Tecnológica
 
-## Getting started
+- **Next.js 16** com App Router e Turbopack
+- **React 19** & **TypeScript**
+- **Tailwind CSS 4** para estilização
+- **React Hook Form** + **Zod** para formulários e validação
+- **Zustand** para gerenciamento de estado
+- **TanStack Table** para tabelas avançadas
+- **Recharts** para gráficos
+- **Lucide React** para ícones
+- **Sonner** para notificações toast
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Funcionalidades Implementadas
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+### RF01 - Gestão do Ciclo de Vida
+- ✅ Cadastro e listagem de demandas
+- ✅ Pipeline mockado de análise
+- ✅ Fluxo de aprovação da comitiva
+- ✅ Conversão de demanda em projeto
+- ✅ Gestão de projetos com aprovação
+- ✅ Conversão de projeto em produto
 
-## Add your files
+### RF03 - Gestão de Recursos Humanos
+- ✅ CRUD completo de colaboradores
+- ✅ Dashboard de ocupação
+- ✅ Indicadores de sub/superalocação
+- ✅ Filtros por empresa, senioridade
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+### RF07 - Squads Transversais
+- ✅ Criação de squads
+- ✅ Adição de membros com papel e percentual
+- ✅ Cálculo automático de custo
+- ✅ Workflow de handover
+
+### Dashboard
+- ✅ Métricas consolidadas
+- ✅ Gráficos de ocupação e status
+- ✅ Alertas de subalocação e pendências
+
+### CRUDs Auxiliares
+- ✅ Gestão de empresas do grupo
+- ✅ Gestão de clientes
+
+## Estrutura de Pastas
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.interjato.com.br/mda/sgpi-frontend.git
-git branch -M main
-git push -uf origin main
+src/
+├── app/                      # Páginas (App Router)
+│   ├── colaboradores/        # Módulo RF03
+│   ├── demandas/            # Módulo RF01
+│   ├── projetos/            # Módulo RF01
+│   ├── produtos/            # Módulo RF01
+│   ├── squads/              # Módulo RF07
+│   ├── empresas/            # CRUD Auxiliar
+│   ├── clientes/            # CRUD Auxiliar
+│   ├── page.tsx             # Dashboard
+│   ├── layout.tsx
+│   └── globals.css
+├── components/
+│   ├── Layout/              # Sidebar, Header
+│   ├── DataTable/           # Tabela avançada
+│   └── ui/                  # Button, Input, Select, Badge, Card, Modal, etc
+├── stores/                  # Zustand stores com dados mockados
+├── schemas/                 # Schemas Zod para validação
+├── interfaces/              # TypeScript interfaces e types
+└── utils/                   # Utilitários (cn, formatters, constants)
 ```
 
-## Integrate with your tools
+## Como Executar
 
-- [ ] [Set up project integrations](https://gitlab.interjato.com.br/mda/sgpi-frontend/-/settings/integrations)
+```bash
+# Instalar dependências
+npm install
 
-## Collaborate with your team
+# Executar em desenvolvimento
+npm run dev
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+# Build de produção
+npm run build
 
-## Test and Deploy
+# Executar produção
+npm start
 
-Use the built-in continuous integration in GitLab.
+# Testes
+npm test
+```
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+## Dados Mockados
 
-***
+O sistema inclui dados de demonstração:
+- 3 empresas do grupo (Alpha, Beta, Gama)
+- 18 colaboradores distribuídos
+- 5 clientes (externos e internos)
+- 3 demandas em diferentes status
+- 2 projetos (1 em execução, 1 aguardando aprovação)
+- 1 produto em operação
+- 2 squads formados com alocações
 
-# Editing this README
+## Scripts Disponíveis
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+| Script | Descrição |
+|--------|-----------|
+| `npm run dev` | Inicia servidor de desenvolvimento |
+| `npm run build` | Gera build de produção |
+| `npm run start` | Inicia servidor de produção |
+| `npm run lint` | Executa ESLint |
+| `npm run test` | Executa testes com Jest |
+| `npm run test:watch` | Testes em modo watch |
+| `npm run test:coverage` | Relatório de cobertura |
 
-## Suggestions for a good README
+## Navegação
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+- `/` - Dashboard principal
+- `/demandas` - Lista e gestão de demandas
+- `/projetos` - Lista e gestão de projetos
+- `/produtos` - Lista de produtos em operação
+- `/squads` - Gestão de squads transversais
+- `/colaboradores` - Gestão de recursos humanos
+- `/empresas` - Gestão de empresas do grupo
+- `/clientes` - Gestão de clientes
 
-## Name
-Choose a self-explaining name for your project.
+## Licença
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+Projeto desenvolvido para fins de demonstração.
