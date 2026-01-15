@@ -7,7 +7,11 @@ import { cn } from "@/utils/cn";
 import { useTenantStore } from "@/stores/tenant.store";
 import { useEmpresaStore } from "@/stores/empresa.store";
 import { useContextoStore } from "@/stores/contexto.store";
+import { useAuthStore } from "@/stores/auth.store";
+import { usePermissoes } from "@/hooks/usePermissoes";
 import { TODAS_UNIDADES } from "@/interfaces/tenant.interface";
+import { PERFIL_USUARIO_LABELS, PERFIL_USUARIO_COLORS } from "@/interfaces/usuario.interface";
+import type { Modulo } from "@/config/permissoes.config";
 import {
   LayoutDashboard,
   FileText,
@@ -22,17 +26,25 @@ import {
   ChevronDown,
   Check,
   Layers,
+  LogOut,
 } from "lucide-react";
 
-const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/demandas", label: "Demandas", icon: FileText },
-  { href: "/projetos", label: "Projetos", icon: FolderKanban },
-  { href: "/produtos", label: "Produtos", icon: Package },
-  { href: "/squads", label: "Squads", icon: Users },
-  { href: "/colaboradores", label: "Colaboradores", icon: UserCircle },
-  { href: "/empresas", label: "Empresas", icon: Building2 },
-  { href: "/clientes", label: "Clientes", icon: Briefcase },
+interface NavItem {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  modulo: Modulo;
+}
+
+const navItems: NavItem[] = [
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, modulo: "dashboard" },
+  { href: "/demandas", label: "Demandas", icon: FileText, modulo: "demandas" },
+  { href: "/projetos", label: "Projetos", icon: FolderKanban, modulo: "projetos" },
+  { href: "/produtos", label: "Produtos", icon: Package, modulo: "produtos" },
+  { href: "/squads", label: "Squads", icon: Users, modulo: "squads" },
+  { href: "/colaboradores", label: "Colaboradores", icon: UserCircle, modulo: "colaboradores" },
+  { href: "/empresas", label: "Empresas", icon: Building2, modulo: "empresas" },
+  { href: "/clientes", label: "Clientes", icon: Briefcase, modulo: "clientes" },
 ];
 
 export const Sidebar = () => {
@@ -44,6 +56,11 @@ export const Sidebar = () => {
   const { getAll: getTenants, getById: getTenant, getEmpresasByTenant } = useTenantStore();
   const { getById: getEmpresa } = useEmpresaStore();
   const { contexto, setTenant, setUnidade, initialize, isInitialized } = useContextoStore();
+  const { usuario, logout } = useAuthStore();
+  const { podeAcessarModulo } = usePermissoes();
+
+  // Filtra os itens de navegação com base nas permissões
+  const navItemsPermitidos = navItems.filter((item) => podeAcessarModulo(item.modulo));
 
   const tenants = getTenants();
   const currentTenant = contexto.tenantId ? getTenant(contexto.tenantId) : null;
@@ -235,7 +252,7 @@ export const Sidebar = () => {
       {/* Navegação */}
       <nav className="flex-1 overflow-y-auto p-3">
         <ul className="space-y-1">
-          {navItems.map((item) => {
+          {navItemsPermitidos.map((item) => {
             const Icon = item.icon;
             const isActive =
               pathname === item.href ||
@@ -263,15 +280,53 @@ export const Sidebar = () => {
         </ul>
       </nav>
 
-      {/* Footer */}
+      {/* Footer - Informações do usuário */}
       <div className="border-t border-slate-700/50 p-3">
-        {!isCollapsed && (
-          <div className="rounded-lg bg-slate-800/50 p-3">
-            <p className="text-xs text-slate-500">Sistema de Gestão</p>
-            <p className="text-sm font-medium text-slate-300">
-              Portfólio Integrado
-            </p>
+        {!isCollapsed ? (
+          <div className="space-y-3">
+            {/* Card do usuário */}
+            {usuario && (
+              <div className="rounded-lg bg-slate-800/50 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-200 truncate">
+                      {usuario.nome}
+                    </p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {usuario.email}
+                    </p>
+                    <span
+                      className={cn(
+                        "inline-block mt-1 px-2 py-0.5 rounded text-xs",
+                        PERFIL_USUARIO_COLORS[usuario.perfil],
+                        "text-white"
+                      )}
+                    >
+                      {PERFIL_USUARIO_LABELS[usuario.perfil]}
+                    </span>
+                  </div>
+                  <button
+                    onClick={logout}
+                    className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    title="Sair"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
+        ) : (
+          /* Botão de logout compacto */
+          usuario && (
+            <button
+              onClick={logout}
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors mx-auto"
+              title="Sair"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
+          )
         )}
       </div>
     </aside>

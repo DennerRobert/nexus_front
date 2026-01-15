@@ -28,6 +28,8 @@ export const tarefaSchema = z.object({
 
   responsavelId: z.string().uuid().optional(),
 
+  sprintId: z.string().uuid().optional(),
+
   prioridade: prioridadeTarefaEnum.default("media"),
 
   estimativaHoras: z

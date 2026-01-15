@@ -10,6 +10,7 @@ export type PrioridadeTarefa = "baixa" | "media" | "alta" | "urgente";
 export interface Tarefa {
   id: string;
   projetoId: string;
+  sprintId?: string;
   titulo: string;
   descricao?: string;
   responsavelId?: string;
@@ -28,6 +29,7 @@ export interface TarefaFormData {
   titulo: string;
   descricao?: string;
   responsavelId?: string;
+  sprintId?: string;
   prioridade: PrioridadeTarefa;
   estimativaHoras?: number;
   dataLimite?: Date;

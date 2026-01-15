@@ -80,14 +80,19 @@ export const demandaSchema = z
 
     horizonteInovacao: horizonteInovacaoEnum,
 
+    // Campo de cliente agora é opcional
     clienteIds: z
       .array(z.string())
-      .min(1, "Selecione pelo menos um cliente"),
+      .optional()
+      .default([]),
 
     prazoDesejado: z.coerce.date().refine(
       (date) => date > new Date(),
       "O prazo deve ser uma data futura"
     ),
+
+    // Novo campo: exibir na vitrine de ideias
+    exibirVitrine: z.boolean().optional().default(true),
   })
   .refine(
     (data) => {
