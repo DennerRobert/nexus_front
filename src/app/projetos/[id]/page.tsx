@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -19,6 +19,12 @@ import { Timeline, AddMarcoButton } from "@/components/Timeline";
 import { KanbanBoard } from "@/components/KanbanBoard";
 import { SaudeCronograma } from "@/components/SaudeCronograma";
 import { Planejamento } from "@/components/Planejamento";
+import { TarefaDetailModal } from "@/components/TarefaDetailModal";
+import { SprintSelector } from "@/components/SprintSelector";
+import { SprintHeader } from "@/components/SprintHeader";
+import { SprintModal } from "@/components/SprintModal";
+import { useAuth } from "@/hooks/useAuth";
+import { usePermissoes } from "@/hooks/usePermissoes";
 import { useProjetoStore } from "@/stores/projeto.store";
 import { useEmpresaStore } from "@/stores/empresa.store";
 import { useClienteStore } from "@/stores/cliente.store";
@@ -30,7 +36,10 @@ import { useTarefaStore } from "@/stores/tarefa.store";
 import { useMarcoProjetoStore } from "@/stores/marco-projeto.store";
 import { useAcompanhamentoStore } from "@/stores/acompanhamento.store";
 import { useDemandaStore } from "@/stores/demanda.store";
+import { useSprintStore, vincularTarefasAsSprints } from "@/stores/sprint.store";
+import { useRegistroHorasStore } from "@/stores/registro-horas.store";
 import type { StatusProjeto } from "@/interfaces/projeto.interface";
+import type { Sprint } from "@/interfaces/sprint.interface";
 import { STATUS_PROJETO_LABELS } from "@/interfaces/projeto.interface";
 import { PAPEL_ALOCACAO_LABELS } from "@/interfaces/alocacao.interface";
 import { CLASSIFICACAO_PRODUTO_LABELS, type ClassificacaoProduto } from "@/interfaces/produto.interface";
@@ -109,7 +118,6 @@ const ProjetoDetailPage = ({ params }: ProjetoDetailPageProps) => {
   const [motivo, setMotivo] = useState("");
   const [classificacao, setClassificacao] = useState<ClassificacaoProduto>("mercado_externo");
   const [nomeProduto, setNomeProduto] = useState("");
-  const [tarefaParaEditar, setTarefaParaEditar] = useState<Tarefa | null>(null);
   const [statusNovaTarefa, setStatusNovaTarefa] = useState<StatusTarefa>("backlog");
 
   // Forms
@@ -192,20 +200,7 @@ const ProjetoDetailPage = ({ params }: ProjetoDetailPageProps) => {
 
   const handleAddTarefa = (status: StatusTarefa) => {
     setStatusNovaTarefa(status);
-    setTarefaParaEditar(null);
     tarefaForm.reset({ prioridade: "media" });
-    setShowTarefaModal(true);
-  };
-
-  const handleEditTarefa = (tarefa: Tarefa) => {
-    setTarefaParaEditar(tarefa);
-    tarefaForm.reset({
-      titulo: tarefa.titulo,
-      descricao: tarefa.descricao,
-      prioridade: tarefa.prioridade,
-      estimativaHoras: tarefa.estimativaHoras,
-      responsavelId: tarefa.responsavelId,
-    });
     setShowTarefaModal(true);
   };
 
@@ -228,8 +223,13 @@ const ProjetoDetailPage = ({ params }: ProjetoDetailPageProps) => {
   const canFinish = projeto.status === "em_execucao";
   const canConvert = projeto.status === "concluido";
 
-  // Definição das abas
-  const tabs: Tab[] = [
+  // Permissões para filtrar abas
+  const { getRestricoes, isAdmin } = usePermissoes();
+  const restricoes = getRestricoes("projetos");
+  const abasPermitidas = restricoes?.apenasAbas || null;
+
+  // Definição de todas as abas
+  const todasAbas: Tab[] = [
     {
       id: "detalhes",
       label: "Detalhes",
@@ -286,7 +286,6 @@ const ProjetoDetailPage = ({ params }: ProjetoDetailPageProps) => {
           projetoId={id}
           tarefas={tarefas}
           onAddTarefa={handleAddTarefa}
-          onEditTarefa={handleEditTarefa}
         />
       ),
     },
@@ -302,6 +301,11 @@ const ProjetoDetailPage = ({ params }: ProjetoDetailPageProps) => {
       ),
     },
   ];
+
+  // Filtra as abas com base nas permissões
+  const tabs = abasPermitidas
+    ? todasAbas.filter((tab) => abasPermitidas.includes(tab.id))
+    : todasAbas;
 
   return (
     <Layout
@@ -381,7 +385,7 @@ const ProjetoDetailPage = ({ params }: ProjetoDetailPageProps) => {
       <Modal
         isOpen={showTarefaModal}
         onClose={() => setShowTarefaModal(false)}
-        title={tarefaParaEditar ? "Editar Tarefa" : "Nova Tarefa"}
+        title="Nova Tarefa"
         size="lg"
       >
         <form onSubmit={tarefaForm.handleSubmit(handleSaveTarefa)} className="space-y-4">
@@ -1054,17 +1058,103 @@ interface TabTarefasProps {
   projetoId: string;
   tarefas: Tarefa[];
   onAddTarefa: (status: StatusTarefa) => void;
-  onEditTarefa: (tarefa: Tarefa) => void;
 }
 
-const TabTarefas = ({ projetoId, tarefas, onAddTarefa, onEditTarefa }: TabTarefasProps) => {
+const TabTarefas = ({ projetoId, tarefas, onAddTarefa }: TabTarefasProps) => {
+  const [selectedSprintId, setSelectedSprintId] = useState<string | null>(null);
+  const [selectedTarefa, setSelectedTarefa] = useState<Tarefa | null>(null);
+  const [showSprintModal, setShowSprintModal] = useState(false);
+  const [sprintParaEditar, setSprintParaEditar] = useState<Sprint | null>(null);
+
+  const { getByProjeto: getSprints } = useSprintStore();
+  const sprints = getSprints(projetoId);
+  const selectedSprint = sprints.find((s) => s.id === selectedSprintId);
+
+  // Vincula tarefas às sprints na primeira renderização
+  useEffect(() => {
+    vincularTarefasAsSprints();
+  }, []);
+
+  // Filtra tarefas pela sprint selecionada
+  const tarefasFiltradas = selectedSprintId === null
+    ? tarefas // Todas as tarefas
+    : selectedSprintId === "backlog"
+    ? tarefas.filter((t) => !t.sprintId) // Apenas backlog
+    : tarefas.filter((t) => t.sprintId === selectedSprintId); // Sprint específica
+
+  const handleEditTarefa = (tarefa: Tarefa) => {
+    setSelectedTarefa(tarefa);
+  };
+
+  const handleTarefaUpdate = (updated: Tarefa) => {
+    // O store já atualiza, apenas atualizamos o estado local
+    setSelectedTarefa(updated);
+  };
+
+  const handleEditSprint = () => {
+    if (selectedSprint) {
+      setSprintParaEditar(selectedSprint);
+      setShowSprintModal(true);
+    }
+  };
+
+  // ID do usuário atual (via autenticação)
+  const { usuarioId } = useAuth();
+  const usuarioAtualId = usuarioId || "anonymous";
+
   return (
-    <div>
+    <div className="space-y-4">
+      {/* Header com selector de sprint */}
+      <div className="flex items-center justify-between">
+        <SprintSelector
+          sprints={sprints}
+          selectedSprintId={selectedSprintId}
+          onSelect={setSelectedSprintId}
+          onCreateSprint={() => {
+            setSprintParaEditar(null);
+            setShowSprintModal(true);
+          }}
+        />
+
+        <div className="text-sm text-slate-400">
+          {tarefasFiltradas.length} tarefa{tarefasFiltradas.length !== 1 ? "s" : ""}
+          {selectedSprintId && selectedSprintId !== "backlog" && (
+            <span> na sprint</span>
+          )}
+        </div>
+      </div>
+
+      {/* Header da sprint selecionada (se houver) */}
+      {selectedSprint && selectedSprint.status !== "concluida" && (
+        <SprintHeader sprint={selectedSprint} onEdit={handleEditSprint} />
+      )}
+
+      {/* Kanban */}
       <KanbanBoard
         projetoId={projetoId}
-        tarefas={tarefas}
+        tarefas={tarefasFiltradas}
         onAddTarefa={onAddTarefa}
-        onEditTarefa={onEditTarefa}
+        onEditTarefa={handleEditTarefa}
+      />
+
+      {/* Modal de detalhes da tarefa */}
+      <TarefaDetailModal
+        tarefa={selectedTarefa}
+        isOpen={!!selectedTarefa}
+        onClose={() => setSelectedTarefa(null)}
+        onUpdate={handleTarefaUpdate}
+        usuarioAtualId={usuarioAtualId}
+      />
+
+      {/* Modal de sprint */}
+      <SprintModal
+        projetoId={projetoId}
+        sprint={sprintParaEditar}
+        isOpen={showSprintModal}
+        onClose={() => {
+          setShowSprintModal(false);
+          setSprintParaEditar(null);
+        }}
       />
     </div>
   );

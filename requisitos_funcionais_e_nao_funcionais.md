@@ -332,6 +332,18 @@ flowchart TB
 | **Stack Tecnológica** | Conjunto de tecnologias (linguagens, frameworks, ferramentas) utilizadas no projeto |
 | **Risco Técnico** | Potencial problema técnico identificado que pode impactar o projeto |
 | **Premissa** | Suposição assumida como verdadeira durante o planejamento do projeto |
+| **Etapa de Demanda** | Estado atual da demanda no fluxo de aprovação (10 etapas definidas: Ideia Recebida, Análise Inicial, etc.) |
+| **Comitê** | Grupo de usuários responsáveis por avaliar e aprovar demandas, composto por um chefe e membros |
+| **Critério de Avaliação** | Aspecto a ser avaliado na demanda (ex: Clareza do Problema, Originalidade, Viabilidade), com peso específico |
+| **Pergunta de Avaliação** | Questão específica dentro de um critério de avaliação, com escala de 1-5 |
+| **Resposta de Avaliação** | Valor atribuído (1-5) pelo avaliador a uma pergunta específica |
+| **Score de Avaliação** | Pontuação calculada (ponderada ou bruta) baseada nas respostas dos critérios de avaliação |
+| **Anexo de Demanda** | Arquivo vinculado a uma demanda, como documentos, imagens ou apresentações |
+| **Vitrine de Ideias** | Espaço público onde demandas marcadas como "exibir na vitrine" são visíveis |
+| **Usuario** | Entidade de autenticação do sistema, separada de Colaborador, podendo ter vínculo opcional |
+| **Perfil de Usuario** | Role/cargo do usuário que define suas permissões no sistema (ex: Administrador, Gestor de Inovação) |
+| **Permissão** | Direito de executar uma ação específica (visualizar, criar, editar, aprovar) em um módulo |
+| **Autorização** | Processo de verificação de permissões antes de permitir acesso a recursos ou ações |
 
 ---
 
@@ -2174,6 +2186,52 @@ Grupo Econômico
 - **RN-S02**: Dados salariais são criptografados em repouso
 - **RN-S03**: Toda operação crítica gera log de auditoria
 
+### RN de Autenticação (RN-AUT)
+- **RN-AUT01**: Sistema de autenticação é mockado (sem persistência de sessão)
+- **RN-AUT02**: Entidade `Usuario` é separada de `Colaborador` (pode haver vínculo opcional)
+- **RN-AUT03**: Login requer email e senha válidos
+- **RN-AUT04**: Sessão expira ao fechar o navegador (sem localStorage de sessão)
+- **RN-AUT05**: Rotas protegidas redirecionam para login se usuário não autenticado
+- **RN-AUT06**: Usuário pode ter vínculo opcional com `Colaborador` via `colaboradorId`
+
+### RN de Permissões e Perfis (RN-PER)
+- **RN-PER01**: Sistema possui 8 perfis de usuário predefinidos
+- **RN-PER02**: Administrador tem acesso total a todos os módulos e ações
+- **RN-PER03**: Permissões são verificadas em tempo de execução via hooks e guards
+- **RN-PER04**: Menu lateral exibe apenas módulos acessíveis ao perfil do usuário
+- **RN-PER05**: Componentes podem ser protegidos condicionalmente via `PermissaoGuard`
+- **RN-PER06**: Restrições permitem acesso limitado (ex: apenas próprios squads, apenas abas específicas)
+- **RN-PER07**: Permissões são configuradas via matriz centralizada (`PERMISSOES_CONFIG`)
+
+### RN de Avaliação de Demandas (RN-AV)
+- **RN-AV01**: Sistema possui 6 critérios de avaliação com pesos definidos
+- **RN-AV02**: Cada critério possui 1-2 perguntas com escala de 1-5
+- **RN-AV03**: Total de 11 perguntas devem ser respondidas para completar avaliação
+- **RN-AV04**: Demanda só pode sair de "Ideia Recebida" quando todas as 11 perguntas estiverem respondidas
+- **RN-AV05**: Score ponderado é calculado com base nos pesos dos critérios
+- **RN-AV06**: Aprovação do comitê requer: 51% dos membros + chefe OU apenas chefe
+- **RN-AV07**: Comitê deve estar associado à demanda para aprovar encaminhamento ao Grupo de Trabalho
+- **RN-AV08**: Respostas de avaliação são vinculadas ao avaliador (usuário)
+
+### RN de Etapas de Demandas (RN-ET)
+- **RN-ET01**: Sistema possui 10 etapas definidas no fluxo de demandas
+- **RN-ET02**: Transições entre etapas são controladas e validadas
+- **RN-ET03**: Demanda inicia sempre na etapa "Ideia Recebida"
+- **RN-ET04**: Mudança de etapa requer preenchimento de critérios (se aplicável)
+- **RN-ET05**: Mudança de etapa registra histórico com responsável, data e observação
+- **RN-ET06**: Notificação é enviada ao solicitante após mudança de etapa (mockado)
+- **RN-ET07**: Arquivo de demanda requer justificativa obrigatória
+- **RN-ET08**: Etapa "Encaminhado Grupo de Trabalho" requer aprovação do comitê
+- **RN-ET09**: Transições não permitidas são bloqueadas com mensagem de erro
+- **RN-ET10**: Histórico de etapas é mantido permanentemente e não pode ser editado
+
+### RN Atualizadas de Demandas (RN-D)
+- **RN-D04**: Cliente não é obrigatório no cadastro de demanda (pode ser múltiplos ou nenhum)
+- **RN-D05**: Campo "Exibir na Vitrine" controla visibilidade pública da ideia
+- **RN-D06**: Múltiplos anexos podem ser vinculados a uma demanda
+- **RN-D07**: Demanda pode ser visualizada em formato de tabela ou Kanban (10 colunas)
+- **RN-D08**: Drag-and-drop no Kanban valida transições permitidas antes de aplicar mudança
+
 ---
 
 ## 12. Métricas de Sucesso do Sistema
@@ -2236,6 +2294,27 @@ Grupo Econômico
 - **Taxa de Edição**: % de planejamentos editados manualmente após geração (Baseline a definir)
 - **Taxa de Exportação**: % de planejamentos exportados (PDF/Markdown) (Baseline a definir)
 - **Utilidade Percebida**: Avaliação dos usuários sobre qualidade do conteúdo gerado (Meta: > 4/5)
+
+### Métricas de Autenticação e Permissões
+- **Taxa de Sucesso de Login**: % de tentativas de login bem-sucedidas (Meta: > 95%)
+- **Taxa de Acesso Negado**: % de tentativas de acesso a recursos sem permissão (Baseline a definir)
+- **Cobertura de Perfis**: % de usuários com perfil definido (Meta: 100%)
+- **Tempo Médio de Verificação de Permissão**: Tempo médio para verificar permissão em componente (Meta: < 50ms)
+
+### Métricas de Avaliação de Demandas
+- **Taxa de Completude de Avaliação**: % de demandas com todos os 11 critérios respondidos (Meta: > 90%)
+- **Tempo Médio de Avaliação**: Tempo médio entre recebimento da demanda e conclusão da avaliação (Meta: < 7 dias)
+- **Taxa de Aprovação do Comitê**: % de demandas aprovadas pelo comitê na primeira tentativa (Meta: > 70%)
+- **Taxa de Uso de Vitrine**: % de demandas marcadas para exibir na vitrine (Baseline a definir)
+- **Média de Anexos por Demanda**: Número médio de anexos por demanda (Baseline a definir)
+
+### Métricas de Fluxo de Etapas de Demandas
+- **Tempo Médio por Etapa**: Tempo médio que uma demanda permanece em cada etapa (Baseline a definir)
+- **Taxa de Transições Válidas**: % de tentativas de mudança de etapa que foram permitidas (Meta: > 95%)
+- **Taxa de Demandas Concluídas**: % de demandas que chegam à etapa "Concluído" (Meta: > 40%)
+- **Taxa de Arquivo**: % de demandas que são arquivadas (Baseline a definir)
+- **Taxa de Devolução**: % de demandas que passam pela etapa "Devolução Proponente" (Baseline a definir)
+- **Uso do Kanban**: % de usuários que utilizam visualização Kanban vs Tabela (Baseline a definir)
 
 ### Métricas de Qualidade
 - **Disponibilidade**: Uptime do sistema (Meta: 99%)
@@ -2444,7 +2523,7 @@ Após aprovação, criar documentos complementares:
 
 **Fim do Documento**
 
-**Versão**: 2.2  
+**Versão**: 2.3  
 **Data**: Janeiro 2026  
 **Autor**: Denner Robert e Eduardo de Moura  
 **Status**: Aguardando Validação
@@ -2452,6 +2531,61 @@ Após aprovação, criar documentos complementares:
 ---
 
 ### Changelog
+
+#### Versão 2.3 (Janeiro 2026)
+- **Autenticação e Autorização**: Implementado sistema de autenticação mockado:
+  - Entidade `Usuario` separada de `Colaborador`
+  - Tela de login com email e senha
+  - Sessão em memória (sem persistência)
+  - Context de autenticação (`AuthContext`) para gerenciamento de estado
+  - Guard de rotas (`AuthGuard`) para proteção de páginas
+- **Sistema de Permissões e Perfis**: Implementado controle de acesso baseado em perfis:
+  - 8 perfis de usuário: Administrador, Gestor de Inovação, Analista de Inovação, Assistente de Inovação, Product Owner, Especialista Multidisciplinar, Cliente, Comercial
+  - Matriz de permissões por módulo e ação (`PERMISSOES_CONFIG`)
+  - Hook `usePermissoes` para verificação de acesso em componentes
+  - Componente `PermissaoGuard` para proteção condicional de elementos
+  - Menu lateral dinâmico baseado em permissões
+  - Restrições granulares (apenas próprios squads, apenas abas específicas, etc.)
+- **RF01 - Melhorias no Módulo de Demandas**:
+  - **Novo fluxo de 10 etapas** substituindo status anterior:
+    * Ideia Recebida, Análise Inicial, Análise Comitê, Devolução Proponente, Readequação Recebida, Validação do Problema, Encaminhado Grupo de Trabalho, Arquivado, Fora do Time Estratégico, Concluído
+    * Sistema de transições controladas entre etapas
+    * Histórico completo de mudanças de etapa com responsável e data
+  - **Sistema de Avaliação de Critérios**:
+    * 6 critérios de avaliação com pesos: Clareza e Relevância do Problema (20%), Originalidade e Diferenciação (15%), Alinhamento Estratégico (20%), Viabilidade Técnica e Operacional (15%), Potencial de Retorno e Mercado (20%), Esforço e Recursos Necessários (10%)
+    * 11 perguntas no total com escala de 1-5
+    * Formulário de avaliação com progresso visual e score ponderado
+    * Validação: demandas só podem sair de "Ideia Recebida" quando todos os critérios estiverem preenchidos
+  - **Sistema de Comitê**:
+    * Entidade `Comite` com chefe e membros (usuários)
+    * Lógica de aprovação: requer 51% dos membros + chefe OU apenas chefe para encaminhar ao Grupo de Trabalho
+    * Validação de aprovação durante transição de etapa
+  - **Sistema de Anexos**:
+    * Upload mockado de múltiplos arquivos por demanda
+    * Componente `AnexoUploader` com drag-and-drop
+    * Gestão de anexos vinculados a demandas
+  - **Kanban de Demandas**:
+    * Visualização alternativa à tabela com 10 colunas representando as etapas
+    * Drag-and-drop entre etapas com validação de transições
+    * Cards com informações resumidas e badges de etapa
+  - **Tela de Criação de Demanda**:
+    * Removida obrigatoriedade de seleção de cliente
+    * Campo "Exibir na Vitrine" (checkbox)
+    * Upload de múltiplos anexos
+    * Descrições e orientações de preenchimento
+  - **Tela de Detalhamento de Demanda**:
+    * Nova aba "Avaliação" com formulário de critérios
+    * Nova aba "Fluxo" com histórico de etapas e botão para mudança de etapa
+    * Modal para mudança de etapa com validações e observações
+    * Notificação ao solicitante após mudança de etapa (mockado)
+- **Glossário**: Adicionados termos: Etapa de Demanda, Comitê, Critério de Avaliação, Pergunta de Avaliação, Resposta de Avaliação, Anexo de Demanda, Score de Avaliação, Vitrine de Ideias, Usuario, Perfil de Usuario, Permissão, Autorização
+- **Regras de Negócio**: Adicionadas seções:
+  - RN-AUT (Autenticação): Regras de login e sessão
+  - RN-PER (Permissões): Regras de controle de acesso por perfil
+  - RN-AV (Avaliação): Regras de avaliação de critérios e aprovação de comitê
+  - RN-ET (Etapas): Regras de transição entre etapas de demanda
+  - Atualização RN-D (Demandas): Novas regras do fluxo de etapas
+- **Métricas**: Adicionadas métricas de autenticação, permissões e avaliação de demandas
 
 #### Versão 2.2 (Janeiro 2026)
 - **RF15**: Novo requisito - Geração de Planejamento e Requisitos:

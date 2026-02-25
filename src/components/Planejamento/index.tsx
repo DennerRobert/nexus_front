@@ -13,6 +13,7 @@ import { ArquiteturaView } from "./ArquiteturaView";
 import { ExportModal } from "./ExportModal";
 import { usePlanejamentoStore } from "@/stores/planejamento.store";
 import { useColaboradorStore } from "@/stores/colaborador.store";
+import { useAuth } from "@/hooks/useAuth";
 import type { Projeto } from "@/interfaces/projeto.interface";
 import type { Demanda } from "@/interfaces/demanda.interface";
 import { formatDate } from "@/utils/formatters";
@@ -55,8 +56,9 @@ export const Planejamento = ({ projeto, demanda }: PlanejamentoProps) => {
   const planejamento = getByProjeto(projeto.id);
   const historico = getHistoricoVersoes(projeto.id);
 
-  // Mock do usuário atual (em produção viria do contexto de auth)
-  const usuarioAtualId = "user-mock-id";
+  // Usuário atual (via autenticação)
+  const { usuarioId } = useAuth();
+  const usuarioAtualId = usuarioId || "anonymous";
 
   const handleGerar = async () => {
     setIsGenerating(true);

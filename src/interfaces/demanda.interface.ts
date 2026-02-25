@@ -1,3 +1,6 @@
+import type { EtapaDemanda, HistoricoEtapa } from "./etapa-demanda.interface";
+import type { RespostaAvaliacao } from "./avaliacao-demanda.interface";
+
 export type StatusDemanda =
   | "rascunho"
   | "em_analise"
@@ -36,7 +39,7 @@ export interface Demanda {
   principaisBeneficios: string;
   recursosNecessarios: string;
   horizonteInovacao: HorizonteInovacao;
-  anexos?: string[];
+  anexos?: string[]; // Campo legado - usar anexosIds
   
   // Campos de sistema
   clienteIds: string[];
@@ -48,6 +51,16 @@ export interface Demanda {
   projetoId?: string;
   createdAt: Date;
   updatedAt: Date;
+
+  // Novos campos para fluxo de etapas
+  etapa: EtapaDemanda;
+  exibirVitrine: boolean;
+  avaliacoes: RespostaAvaliacao[];
+  anexosIds: string[];
+  justificativaArquivamento?: string;
+  comiteId?: string;
+  historicoEtapas: HistoricoEtapa[];
+  squadSugeridoId?: string; // Sugestão de squad pela IA
 }
 
 export interface DemandaFormData {
@@ -65,6 +78,7 @@ export interface DemandaFormData {
   horizonteInovacao: HorizonteInovacao;
   clienteIds: string[];
   prazoDesejado: Date;
+  exibirVitrine?: boolean;
 }
 
 export const STATUS_DEMANDA_LABELS: Record<StatusDemanda, string> = {
