@@ -18,7 +18,8 @@ export interface Usuario {
   perfil: PerfilUsuario;
   colaboradorId?: string; // vínculo opcional com colaborador
   tenantId: string;
-  empresaIds: string[]; // unidades que tem acesso
+  empresaId: string; // empresa principal / home do usuário
+  empresaIds: string[]; // todas as empresas que tem acesso
   ativo: boolean;
   createdAt: Date;
   updatedAt: Date;

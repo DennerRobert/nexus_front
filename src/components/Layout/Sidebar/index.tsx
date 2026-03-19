@@ -34,17 +34,18 @@ interface NavItem {
   label: string;
   icon: typeof LayoutDashboard;
   modulo: Modulo;
+  emDesenvolvimento?: boolean;
 }
 
 const navItems: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, modulo: "dashboard" },
   { href: "/demandas", label: "Demandas", icon: FileText, modulo: "demandas" },
-  { href: "/projetos", label: "Projetos", icon: FolderKanban, modulo: "projetos" },
-  { href: "/produtos", label: "Produtos", icon: Package, modulo: "produtos" },
-  { href: "/squads", label: "Squads", icon: Users, modulo: "squads" },
+  { href: "/projetos", label: "Projetos", icon: FolderKanban, modulo: "projetos", emDesenvolvimento: true },
+  { href: "/produtos", label: "Produtos", icon: Package, modulo: "produtos", emDesenvolvimento: true },
+  { href: "/squads", label: "Squads", icon: Users, modulo: "squads", emDesenvolvimento: true },
   { href: "/colaboradores", label: "Colaboradores", icon: UserCircle, modulo: "colaboradores" },
   { href: "/empresas", label: "Empresas", icon: Building2, modulo: "empresas" },
-  { href: "/clientes", label: "Clientes", icon: Briefcase, modulo: "clientes" },
+  { href: "/clientes", label: "Clientes", icon: Briefcase, modulo: "clientes", emDesenvolvimento: true },
 ];
 
 export const Sidebar = () => {
@@ -59,8 +60,10 @@ export const Sidebar = () => {
   const { usuario, logout } = useAuthStore();
   const { podeAcessarModulo } = usePermissoes();
 
-  // Filtra os itens de navegação com base nas permissões
-  const navItemsPermitidos = navItems.filter((item) => podeAcessarModulo(item.modulo));
+  // Filtra os itens de navegação com base nas permissões (mantém itens em dev para exibição desabilitada)
+  const navItemsVisiveis = navItems.filter(
+    (item) => item.emDesenvolvimento || podeAcessarModulo(item.modulo)
+  );
 
   const tenants = getTenants();
   const currentTenant = contexto.tenantId ? getTenant(contexto.tenantId) : null;
@@ -252,11 +255,36 @@ export const Sidebar = () => {
       {/* Navegação */}
       <nav className="flex-1 overflow-y-auto p-3">
         <ul className="space-y-1">
-          {navItemsPermitidos.map((item) => {
+          {navItemsVisiveis.map((item) => {
             const Icon = item.icon;
             const isActive =
               pathname === item.href ||
               (item.href !== "/" && pathname.startsWith(item.href));
+
+            if (item.emDesenvolvimento) {
+              return (
+                <li key={item.href}>
+                  <span
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium",
+                      "text-slate-600 cursor-not-allowed select-none",
+                      isCollapsed && "justify-center px-2"
+                    )}
+                    title={isCollapsed ? `${item.label} — Em desenvolvimento` : undefined}
+                  >
+                    <Icon className="h-5 w-5 flex-shrink-0" />
+                    {!isCollapsed && (
+                      <>
+                        <span className="flex-1">{item.label}</span>
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700/50 leading-tight">
+                          Em breve
+                        </span>
+                      </>
+                    )}
+                  </span>
+                </li>
+              );
+            }
 
             return (
               <li key={item.href}>
