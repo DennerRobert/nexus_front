@@ -2551,7 +2551,7 @@ Após aprovação, criar documentos complementares:
     * Ideia Recebida, Análise Inicial, Análise Comitê, Devolução Proponente, Readequação Recebida, Validação do Problema, Encaminhado Grupo de Trabalho, Arquivado, Fora do Time Estratégico, Concluído
     * Sistema de transições controladas entre etapas
     * Histórico completo de mudanças de etapa com responsável e data
-  - **Sistema de Avaliação de Critérios**:
+  - **Sistema de Avaliação de Critérios**: 
     * 6 critérios de avaliação com pesos: Clareza e Relevância do Problema (20%), Originalidade e Diferenciação (15%), Alinhamento Estratégico (20%), Viabilidade Técnica e Operacional (15%), Potencial de Retorno e Mercado (20%), Esforço e Recursos Necessários (10%)
     * 11 perguntas no total com escala de 1-5
     * Formulário de avaliação com progresso visual e score ponderado
