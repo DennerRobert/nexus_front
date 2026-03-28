@@ -552,20 +552,22 @@ const DemandaDetailPage = ({ params }: DemandaDetailPageProps) => {
     <Layout
       title={demanda.titulo}
       subtitle={`Ideia #${id.slice(0, 8)}`}
-      actions={
-        <div className="flex items-center gap-3">
+    >
+      {/* Barra de navegação e status */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <Link href="/demandas">
+          <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+            Voltar para Demandas
+          </Button>
+        </Link>
+        <div className="flex items-center gap-2">
           <EtapaBadge etapa={demanda.etapa} />
           <Badge variant={statusVariantMap[demanda.status]}>
             {STATUS_DEMANDA_LABELS[demanda.status]}
           </Badge>
-          <Link href="/demandas">
-            <Button variant="outline" leftIcon={<ArrowLeft className="h-4 w-4" />}>
-              Voltar
-            </Button>
-          </Link>
         </div>
-      }
-    >
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           <Tabs tabs={tabs} defaultTab="detalhes" />

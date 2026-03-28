@@ -311,19 +311,18 @@ const ProjetoDetailPage = ({ params }: ProjetoDetailPageProps) => {
     <Layout
       title={projeto.nome}
       subtitle={`Projeto #${id.slice(0, 8)}`}
-      actions={
-        <div className="flex items-center gap-3">
-          <Badge variant={statusVariantMap[projeto.status]}>
-            {STATUS_PROJETO_LABELS[projeto.status]}
-          </Badge>
-          <Link href="/projetos">
-            <Button variant="outline" leftIcon={<ArrowLeft className="h-4 w-4" />}>
-              Voltar
-            </Button>
-          </Link>
-        </div>
-      }
     >
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <Link href="/projetos">
+          <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+            Voltar para Projetos
+          </Button>
+        </Link>
+        <Badge variant={statusVariantMap[projeto.status]}>
+          {STATUS_PROJETO_LABELS[projeto.status]}
+        </Badge>
+      </div>
+
       <Tabs tabs={tabs} defaultTab="detalhes" />
 
       {/* Modal Rejeitar */}

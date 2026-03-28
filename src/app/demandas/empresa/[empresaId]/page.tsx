@@ -179,56 +179,53 @@ const EmpresaDemandasPage = () => {
           ? `${empresa.setor} · ${FORMULARIO_TIPO_DESCRICAO[tipo]}`
           : FORMULARIO_TIPO_DESCRICAO[tipo]
       }
-      actions={
-        <div className="flex items-center gap-3">
-          <Link href="/demandas">
-            <Button
-              variant="outline"
-              leftIcon={<ArrowLeft className="h-4 w-4" />}
-            >
-              Empresas
-            </Button>
-          </Link>
-
-          {/* Toggle de visualização */}
-          <div className="flex items-center rounded-lg border border-slate-700 p-1">
-            <button
-              onClick={() => setVisualizacao("tabela")}
-              className={cn(
-                "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
-                visualizacao === "tabela"
-                  ? "bg-slate-700 text-white"
-                  : "text-slate-400 hover:text-white"
-              )}
-            >
-              <Table className="h-4 w-4" />
-              Tabela
-            </button>
-            <button
-              onClick={() => setVisualizacao("kanban")}
-              className={cn(
-                "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
-                visualizacao === "kanban"
-                  ? "bg-slate-700 text-white"
-                  : "text-slate-400 hover:text-white"
-              )}
-            >
-              <LayoutGrid className="h-4 w-4" />
-              Kanban
-            </button>
-          </div>
-
-          {podeCriar && (
-            <Link href={`/demandas/empresa/${empresaId}/nova`}>
-              <Button leftIcon={<Plus className="h-4 w-4" />}>
-                Nova Demanda
-              </Button>
-            </Link>
-          )}
-        </div>
-      }
     >
       <div className="space-y-6">
+        {/* Barra de navegação e ações */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link href="/demandas">
+            <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+              Voltar para Demandas
+            </Button>
+          </Link>
+          <div className="flex items-center gap-3">
+            {/* Toggle de visualização */}
+            <div className="flex items-center rounded-lg border border-slate-700 p-1">
+              <button
+                onClick={() => setVisualizacao("tabela")}
+                className={cn(
+                  "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
+                  visualizacao === "tabela"
+                    ? "bg-slate-700 text-white"
+                    : "text-slate-400 hover:text-white"
+                )}
+              >
+                <Table className="h-4 w-4" />
+                Tabela
+              </button>
+              <button
+                onClick={() => setVisualizacao("kanban")}
+                className={cn(
+                  "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
+                  visualizacao === "kanban"
+                    ? "bg-slate-700 text-white"
+                    : "text-slate-400 hover:text-white"
+                )}
+              >
+                <LayoutGrid className="h-4 w-4" />
+                Kanban
+              </button>
+            </div>
+            {podeCriar && (
+              <Link href={`/demandas/empresa/${empresaId}/nova`}>
+                <Button leftIcon={<Plus className="h-4 w-4" />}>
+                  Nova Demanda
+                </Button>
+              </Link>
+            )}
+          </div>
+        </div>
+
         {/* Banner da empresa */}
         <div className="flex items-center gap-4 rounded-xl border border-slate-700/50 bg-slate-800/40 px-5 py-4">
           <div

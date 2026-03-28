@@ -42,7 +42,7 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, PermissaoModulo[]> = {
     { modulo: "*", acoes: ["todas"] },
   ],
 
-  // Gestor de Inovação - Acesso completo a demandas, limitado em projetos
+  // Gestor de Inovação - Acesso completo a demandas, limitado em projetos, acesso total a clientes
   gestor_inovacao: [
     { modulo: "dashboard", acoes: ["todas"] },
     { modulo: "demandas", acoes: ["todas"] },
@@ -51,6 +51,7 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, PermissaoModulo[]> = {
       acoes: ["visualizar"],
       restricoes: { apenasAbas: ["detalhes", "acompanhamento"] },
     },
+    { modulo: "clientes", acoes: ["todas"] },
   ],
 
   // Analista de Inovação - Similar ao gestor
@@ -62,9 +63,10 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, PermissaoModulo[]> = {
       acoes: ["visualizar"],
       restricoes: { apenasAbas: ["detalhes", "acompanhamento"] },
     },
+    { modulo: "clientes", acoes: ["todas"] },
   ],
 
-  // Assistente de Inovação - Similar ao analista
+  // Assistente de Inovação - Visualização de clientes
   assistente_inovacao: [
     { modulo: "dashboard", acoes: ["todas"] },
     { modulo: "demandas", acoes: ["todas"] },
@@ -73,6 +75,7 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, PermissaoModulo[]> = {
       acoes: ["visualizar"],
       restricoes: { apenasAbas: ["detalhes", "acompanhamento"] },
     },
+    { modulo: "clientes", acoes: ["visualizar"] },
   ],
 
   // Product Owner - Demandas limitado, projetos dos seus squads
@@ -114,13 +117,14 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, PermissaoModulo[]> = {
     },
   ],
 
-  // Comercial - Apenas demandas limitado
+  // Comercial - Demandas limitado + acesso total a clientes
   comercial: [
     {
       modulo: "demandas",
       acoes: ["visualizar", "criar"],
       restricoes: { apenasVitrineIdeias: true, apenasSubmissao: true },
     },
+    { modulo: "clientes", acoes: ["todas"] },
   ],
 };
 

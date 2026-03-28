@@ -165,15 +165,24 @@ const DashboardPage = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={demandasPorEmpresa} barSize={24}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                    <XAxis dataKey="nome" stroke="#64748b" tick={{ fontSize: 12 }} />
-                    <YAxis stroke="#64748b" tick={{ fontSize: 12 }} allowDecimals={false} />
+                    <XAxis
+                      dataKey="nome"
+                      stroke="#334155"
+                      tick={{ fontSize: 12, fill: "#94a3b8" }}
+                    />
+                    <YAxis
+                      stroke="#334155"
+                      tick={{ fontSize: 12, fill: "#94a3b8" }}
+                      allowDecimals={false}
+                    />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "#0f172a",
-                        border: "1px solid #1e293b",
+                        border: "1px solid #334155",
                         borderRadius: "8px",
                       }}
-                      labelStyle={{ color: "#f1f5f9" }}
+                      labelStyle={{ color: "#f1f5f9", fontWeight: 600 }}
+                      itemStyle={{ color: "#cbd5e1" }}
                     />
                     <Bar dataKey="total" fill="#06b6d4" radius={[4, 4, 0, 0]} name="Total" />
                     <Bar dataKey="pendentes" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Pendentes" />
@@ -211,9 +220,11 @@ const DashboardPage = () => {
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "#0f172a",
-                        border: "1px solid #1e293b",
+                        border: "1px solid #334155",
                         borderRadius: "8px",
                       }}
+                      labelStyle={{ color: "#f1f5f9", fontWeight: 600 }}
+                      itemStyle={{ color: "#cbd5e1" }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -247,20 +258,27 @@ const DashboardPage = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={etapasDemandas} layout="vertical" barSize={16}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
-                    <XAxis type="number" stroke="#64748b" tick={{ fontSize: 12 }} allowDecimals={false} />
+                    <XAxis
+                      type="number"
+                      stroke="#334155"
+                      tick={{ fontSize: 12, fill: "#94a3b8" }}
+                      allowDecimals={false}
+                    />
                     <YAxis
                       type="category"
                       dataKey="etapa"
-                      stroke="#64748b"
-                      tick={{ fontSize: 11 }}
+                      stroke="#334155"
+                      tick={{ fontSize: 11, fill: "#94a3b8" }}
                       width={160}
                     />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: "#0f172a",
-                        border: "1px solid #1e293b",
+                        border: "1px solid #334155",
                         borderRadius: "8px",
                       }}
+                      labelStyle={{ color: "#f1f5f9", fontWeight: 600 }}
+                      itemStyle={{ color: "#cbd5e1" }}
                     />
                     <Bar dataKey="total" fill="#8b5cf6" radius={[0, 4, 4, 0]} name="Demandas" />
                   </BarChart>

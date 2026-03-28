@@ -113,13 +113,14 @@ const SquadsPage = () => {
     <Layout
       title="Squads"
       subtitle="Gestão de squads transversais"
-      actions={
-        <Link href="/squads/novo">
-          <Button leftIcon={<Plus className="h-4 w-4" />}>Novo Squad</Button>
-        </Link>
-      }
     >
       <div className="space-y-6">
+        <div className="flex justify-end">
+          <Link href="/squads/novo">
+            <Button leftIcon={<Plus className="h-4 w-4" />}>Novo Squad</Button>
+          </Link>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard title="Total de Squads" value={stats.total} icon={Users} />
           <StatCard title="Ativos" value={stats.ativos} icon={PlayCircle} />

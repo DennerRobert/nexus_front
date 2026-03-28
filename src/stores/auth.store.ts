@@ -18,6 +18,9 @@ interface AuthActions {
   getUsuarioAtualId: () => string | null;
   setLoading: (loading: boolean) => void;
   clearError: () => void;
+  // Ações de perfil
+  atualizarPerfil: (data: { nome: string; email: string }) => void;
+  alterarSenha: (senhaAtual: string, novaSenha: string) => boolean;
 }
 
 type AuthStore = AuthState & AuthActions;
@@ -194,6 +197,39 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   setLoading: (loading: boolean) => set({ isLoading: loading }),
 
   clearError: () => set({ error: null }),
+
+  atualizarPerfil: (data) => {
+    const { usuario } = get();
+    if (!usuario) return;
+
+    const updatedAt = new Date();
+    const usuarioAtualizado: Usuario = { ...usuario, ...data, updatedAt };
+
+    set({ usuario: usuarioAtualizado });
+
+    // Sincroniza o mock para que login subsequente funcione
+    const idx = mockUsuarios.findIndex((u) => u.id === usuario.id);
+    if (idx !== -1) {
+      mockUsuarios[idx] = { ...mockUsuarios[idx], ...data, updatedAt };
+    }
+  },
+
+  alterarSenha: (senhaAtual, novaSenha) => {
+    const { usuario } = get();
+    if (!usuario) return false;
+
+    if (usuario.senha !== senhaAtual) return false;
+
+    const updatedAt = new Date();
+    set({ usuario: { ...usuario, senha: novaSenha, updatedAt } });
+
+    const idx = mockUsuarios.findIndex((u) => u.id === usuario.id);
+    if (idx !== -1) {
+      mockUsuarios[idx] = { ...mockUsuarios[idx], senha: novaSenha, updatedAt };
+    }
+
+    return true;
+  },
 }));
 
 // Exportar usuários mock para referência

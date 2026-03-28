@@ -72,14 +72,14 @@ const NovaDemandaEmpresaPage = () => {
     <Layout
       title={`Nova Demanda — ${empresa.nome}`}
       subtitle={subtitleMap[tipo]}
-      actions={
+    >
+      <div className="mb-6">
         <Link href={`/demandas/empresa/${empresaId}`}>
-          <Button variant="outline" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+          <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
             Voltar
           </Button>
         </Link>
-      }
-    >
+      </div>
       {tipo === "inovacao" && (
         <FormInovacao
           empresaId={empresaId}

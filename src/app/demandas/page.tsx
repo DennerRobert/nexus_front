@@ -79,15 +79,17 @@ const DemandasPage = () => {
     <Layout
       title="Nova Demanda"
       subtitle="Preencha o formulário abaixo para registrar uma demanda"
-      actions={
-        <Link href="/demandas/lista">
-          <Button variant="outline" leftIcon={<LayoutList className="h-4 w-4" />}>
-            Ver demandas
-          </Button>
-        </Link>
-      }
     >
       <div className="space-y-6">
+        {/* Barra de navegação */}
+        <div className="flex justify-end">
+          <Link href="/demandas/lista">
+            <Button variant="outline" size="sm" leftIcon={<LayoutList className="h-4 w-4" />}>
+              Ver demandas
+            </Button>
+          </Link>
+        </div>
+
         {/* Seletor de empresa destino */}
         <div className="relative">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">

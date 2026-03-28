@@ -143,14 +143,15 @@ const SquadDetailPage = ({ params }: SquadDetailPageProps) => {
     <Layout
       title={squad.nome}
       subtitle={squad.objetivo}
-      actions={
+    >
+      <div className="mb-6">
         <Link href="/squads">
-          <Button variant="outline" leftIcon={<ArrowLeft className="h-4 w-4" />}>
-            Voltar
+          <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+            Voltar para Squads
           </Button>
         </Link>
-      }
-    >
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           <Card>

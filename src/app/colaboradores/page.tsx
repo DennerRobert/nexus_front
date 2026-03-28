@@ -146,15 +146,16 @@ const ColaboradoresPage = () => {
     <Layout
       title="Colaboradores"
       subtitle="Gestão de recursos humanos e especialidades"
-      actions={
-        <Link href="/colaboradores/novo">
-          <Button leftIcon={<Plus className="h-4 w-4" />}>
-            Novo Colaborador
-          </Button>
-        </Link>
-      }
     >
       <div className="space-y-6">
+        <div className="flex justify-end">
+          <Link href="/colaboradores/novo">
+            <Button leftIcon={<Plus className="h-4 w-4" />}>
+              Novo Colaborador
+            </Button>
+          </Link>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Total de Colaboradores"

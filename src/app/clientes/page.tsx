@@ -173,13 +173,14 @@ const ClientesPage = () => {
     <Layout
       title="Clientes"
       subtitle="Gestão de clientes e modelos de receita"
-      actions={
-        <Button onClick={handleOpenCreate} leftIcon={<Plus className="h-4 w-4" />}>
-          Novo Cliente
-        </Button>
-      }
     >
       <div className="space-y-6">
+        <div className="flex justify-end">
+          <Button onClick={handleOpenCreate} leftIcon={<Plus className="h-4 w-4" />}>
+            Novo Cliente
+          </Button>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard title="Total de Clientes" value={stats.total} icon={Briefcase} />
           <StatCard title="Clientes Externos" value={stats.externos} icon={Building2} />

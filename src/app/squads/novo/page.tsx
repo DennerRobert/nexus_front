@@ -44,14 +44,14 @@ const NovoSquadPage = () => {
     <Layout
       title="Novo Squad"
       subtitle="Criar um squad transversal"
-      actions={
+    >
+      <div className="mb-6">
         <Link href="/squads">
-          <Button variant="outline" leftIcon={<ArrowLeft className="h-4 w-4" />}>
-            Voltar
+          <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+            Voltar para Squads
           </Button>
         </Link>
-      }
-    >
+      </div>
       <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
         <Card>
           <CardHeader>

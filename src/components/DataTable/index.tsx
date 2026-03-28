@@ -13,7 +13,7 @@ import {
   type ColumnFiltersState,
 } from "@tanstack/react-table";
 import { cn } from "@/utils/cn";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
@@ -23,6 +23,7 @@ interface DataTableProps<TData, TValue> {
   searchPlaceholder?: string;
   searchColumn?: string;
   pageSize?: number;
+  defaultSorting?: SortingState;
 }
 
 export const DataTable = <TData, TValue>({
@@ -31,8 +32,9 @@ export const DataTable = <TData, TValue>({
   searchPlaceholder = "Buscar...",
   searchColumn,
   pageSize = 10,
+  defaultSorting = [],
 }: DataTableProps<TData, TValue>) => {
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [sorting, setSorting] = useState<SortingState>(defaultSorting);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
 
@@ -108,7 +110,13 @@ export const DataTable = <TData, TValue>({
                         >
                           {flexRender(header.column.columnDef.header, header.getContext())}
                           {header.column.getCanSort() && (
-                            <ArrowUpDown className="h-3 w-3" />
+                            header.column.getIsSorted() === "asc" ? (
+                              <ArrowUp className="h-3 w-3 text-cyan-400" />
+                            ) : header.column.getIsSorted() === "desc" ? (
+                              <ArrowDown className="h-3 w-3 text-cyan-400" />
+                            ) : (
+                              <ArrowUpDown className="h-3 w-3 opacity-40" />
+                            )
                           )}
                         </div>
                       )}

@@ -104,14 +104,14 @@ const ColaboradorDetailPage = ({ params }: ColaboradorDetailPageProps) => {
       <Layout
         title={`Editar: ${colaborador.nome}`}
         subtitle="Atualizar informações do colaborador"
-        actions={
+      >
+        <div className="mb-6 flex justify-start">
           <Link href={`/colaboradores/${id}`}>
-            <Button variant="outline" leftIcon={<ArrowLeft className="h-4 w-4" />}>
-              Cancelar
+            <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+              Cancelar edição
             </Button>
           </Link>
-        }
-      >
+        </div>
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
           <Card>
             <CardHeader>
@@ -215,19 +215,18 @@ const ColaboradorDetailPage = ({ params }: ColaboradorDetailPageProps) => {
     <Layout
       title={colaborador.nome}
       subtitle={colaborador.cargo}
-      actions={
-        <div className="flex gap-2">
-          <Link href="/colaboradores">
-            <Button variant="outline" leftIcon={<ArrowLeft className="h-4 w-4" />}>
-              Voltar
-            </Button>
-          </Link>
-          <Link href={`/colaboradores/${id}?edit=true`}>
-            <Button leftIcon={<Edit className="h-4 w-4" />}>Editar</Button>
-          </Link>
-        </div>
-      }
     >
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <Link href="/colaboradores">
+          <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+            Voltar para Colaboradores
+          </Button>
+        </Link>
+        <Link href={`/colaboradores/${id}?edit=true`}>
+          <Button size="sm" leftIcon={<Edit className="h-4 w-4" />}>Editar</Button>
+        </Link>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           <Card>

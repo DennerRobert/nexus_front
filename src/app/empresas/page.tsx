@@ -172,13 +172,14 @@ const EmpresasPage = () => {
     <Layout
       title="Empresas"
       subtitle="Gestão das empresas do grupo econômico"
-      actions={
-        <Button onClick={handleOpenCreate} leftIcon={<Plus className="h-4 w-4" />}>
-          Nova Empresa
-        </Button>
-      }
     >
       <div className="space-y-6">
+        <div className="flex justify-end">
+          <Button onClick={handleOpenCreate} leftIcon={<Plus className="h-4 w-4" />}>
+            Nova Empresa
+          </Button>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard title="Total de Empresas" value={stats.total} icon={Building2} />
           <StatCard title="Empresas Ativas" value={stats.ativas} icon={Building2} />

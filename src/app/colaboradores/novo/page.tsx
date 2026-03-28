@@ -54,14 +54,14 @@ const NovoColaboradorPage = () => {
     <Layout
       title="Novo Colaborador"
       subtitle="Cadastrar um novo profissional"
-      actions={
+    >
+      <div className="mb-6">
         <Link href="/colaboradores">
-          <Button variant="outline" leftIcon={<ArrowLeft className="h-4 w-4" />}>
-            Voltar
+          <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+            Voltar para Colaboradores
           </Button>
         </Link>
-      }
-    >
+      </div>
       <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
         <Card>
           <CardHeader>

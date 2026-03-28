@@ -12,6 +12,7 @@ import {
   TOTAL_PERGUNTAS,
   getCriterioById,
 } from "@/config/criterios-avaliacao.config";
+import { mockRespostasAvaliacao } from "@/utils/mock-data";
 
 interface AvaliacaoDemandaState {
   respostas: RespostaAvaliacao[];
@@ -45,7 +46,7 @@ interface AvaliacaoDemandaActions {
 export const useAvaliacaoDemandaStore = create<AvaliacaoDemandaState & AvaliacaoDemandaActions>()(
   persist(
     (set, get) => ({
-      respostas: [],
+      respostas: mockRespostasAvaliacao,
 
       // CRUD
       getAll: () => get().respostas,
@@ -245,6 +246,39 @@ export const useAvaliacaoDemandaStore = create<AvaliacaoDemandaState & Avaliacao
     }),
     {
       name: "nexus-avaliacao-demanda-store",
+      version: 2,
+      migrate: (persistedState: unknown, version: number) => {
+        const state = persistedState as AvaliacaoDemandaState;
+
+        // v2: introduz avaliações fictícias nas demandas mock
+        if (version < 2) {
+          const mockIds = new Set(mockRespostasAvaliacao.map((r) => r.id));
+          const respostasUsuario = (state.respostas || []).filter(
+            (r) => !mockIds.has(r.id)
+          );
+          return {
+            ...state,
+            respostas: [...mockRespostasAvaliacao, ...respostasUsuario],
+          };
+        }
+
+        return state;
+      },
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<AvaliacaoDemandaState>;
+
+        if (!persisted.respostas || persisted.respostas.length === 0) {
+          return currentState;
+        }
+
+        // Garantir que as avaliações mock sempre estejam presentes
+        const mockIds = new Set(mockRespostasAvaliacao.map((r) => r.id));
+        const respostasUsuario = persisted.respostas.filter((r) => !mockIds.has(r.id));
+        return {
+          ...currentState,
+          respostas: [...mockRespostasAvaliacao, ...respostasUsuario],
+        };
+      },
     }
   )
 );

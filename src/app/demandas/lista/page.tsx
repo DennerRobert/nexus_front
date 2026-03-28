@@ -12,6 +12,7 @@ import { EtapaBadge } from "@/components/EtapaBadge";
 import { KanbanDemandas } from "@/components/KanbanDemandas";
 import { useEmpresaStore } from "@/stores/empresa.store";
 import { useDemandaStore } from "@/stores/demanda.store";
+import { useAvaliacaoDemandaStore } from "@/stores/avaliacao-demanda.store";
 import { useAuth } from "@/hooks/useAuth";
 import type { Demanda, StatusDemanda } from "@/interfaces/demanda.interface";
 import { STATUS_DEMANDA_LABELS } from "@/interfaces/demanda.interface";
@@ -23,6 +24,7 @@ import {
   Table,
   LayoutGrid,
   Building2,
+  Star,
 } from "lucide-react";
 
 const statusVariantMap: Record<StatusDemanda, BadgeVariant> = {
@@ -42,6 +44,7 @@ const DemandasListaPage = () => {
   const { usuario, usuarioId } = useAuth();
   const { getAll: getDemandas } = useDemandaStore();
   const { getById: getEmpresa } = useEmpresaStore();
+  const { calcularPontuacaoTotal } = useAvaliacaoDemandaStore();
 
   const [visualizacao, setVisualizacao] = useState<VisualizacaoTipo>("tabela");
   const [empresaFiltro, setEmpresaFiltro] = useState<string>("todas");
@@ -112,6 +115,43 @@ const DemandasListaPage = () => {
         cell: ({ row }) => formatDate(row.original.createdAt),
       },
       {
+        id: "pontuacao",
+        header: "Pontuação",
+        accessorFn: (row) => calcularPontuacaoTotal(row.id).pontuacaoPonderada,
+        sortingFn: "basic",
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const score = getValue() as number;
+          if (score === 0) {
+            return <span className="text-slate-600 text-xs">— Sem avaliação</span>;
+          }
+          const pct = (score / 5) * 100;
+          const color =
+            score >= 4
+              ? { text: "text-green-400", bar: "bg-green-500", bg: "bg-green-500/10 border-green-500/30" }
+              : score >= 3
+              ? { text: "text-cyan-400", bar: "bg-cyan-500", bg: "bg-cyan-500/10 border-cyan-500/30" }
+              : score >= 2
+              ? { text: "text-yellow-400", bar: "bg-yellow-500", bg: "bg-yellow-500/10 border-yellow-500/30" }
+              : { text: "text-red-400", bar: "bg-red-500", bg: "bg-red-500/10 border-red-500/30" };
+          return (
+            <div className={cn("flex items-center gap-2 rounded-md border px-2 py-1 w-fit", color.bg)}>
+              <Star className={cn("h-3 w-3 fill-current", color.text)} />
+              <span className={cn("text-sm font-semibold tabular-nums", color.text)}>
+                {score.toFixed(1)}
+              </span>
+              <span className="text-slate-600 text-xs">/5</span>
+              <div className="h-1.5 w-12 overflow-hidden rounded-full bg-slate-700/60">
+                <div
+                  className={cn("h-full rounded-full transition-all", color.bar)}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          );
+        },
+      },
+      {
         id: "actions",
         header: "",
         cell: ({ row }) => (
@@ -123,25 +163,23 @@ const DemandasListaPage = () => {
         ),
       },
     ],
-    [getEmpresa]
+    [getEmpresa, calcularPontuacaoTotal]
   );
 
   return (
     <Layout
       title="Minhas Demandas"
       subtitle="Demandas das empresas que você tem acesso"
-      actions={
-        <Button
-          leftIcon={<Plus className="h-4 w-4" />}
-          onClick={() => router.push("/demandas")}
-        >
-          Nova Demanda
-        </Button>
-      }
     >
       <div className="space-y-5">
         {/* Filtro por empresa + toggle de visualização */}
         <div className="flex flex-wrap items-center gap-3">
+          <Button
+            leftIcon={<Plus className="h-4 w-4" />}
+            onClick={() => router.push("/demandas")}
+          >
+            Nova Demanda
+          </Button>
           {/* Pills de empresa */}
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -216,6 +254,7 @@ const DemandasListaPage = () => {
             data={demandasFiltradas}
             searchPlaceholder="Buscar por título..."
             searchColumn="titulo"
+            defaultSorting={[{ id: "pontuacao", desc: true }]}
           />
         ) : (
           <KanbanDemandas

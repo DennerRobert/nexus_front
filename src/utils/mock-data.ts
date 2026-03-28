@@ -29,6 +29,7 @@ import type {
   PapelAlocacao,
   StatusAlocacao,
 } from "@/interfaces/alocacao.interface";
+import type { RespostaAvaliacao } from "@/interfaces/avaliacao-demanda.interface";
 
 const now = new Date();
 const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -55,10 +56,11 @@ for (let i = 1; i <= 18; i++) {
   colaboradorIds[`colab${i}`] = uuidv4();
 }
 
-const demandaIds = {
-  demanda1: uuidv4(),
-  demanda2: uuidv4(),
-  demanda3: uuidv4(),
+// IDs fixos para garantir consistência entre demandas e avaliações
+export const demandaIds = {
+  demanda1: "demanda-app-mobile-varejo-001",
+  demanda2: "demanda-gestao-contratos-techcorp-002",
+  demanda3: "demanda-portal-transparencia-003",
 };
 
 const projetoIds = {
@@ -713,3 +715,67 @@ export const getProjetoById = (id: string): Projeto | undefined =>
 
 export const getSquadById = (id: string): Squad | undefined =>
   mockSquads.find((s) => s.id === id);
+
+// IDs fictícios de avaliadores para os mocks
+const AVALIADOR_ANA = "mock-avaliador-ana-oliveira";
+const AVALIADOR_JOAO = "mock-avaliador-joao-santos";
+
+// Avaliações fictícias para as demandas de demonstração
+// Demanda 1 (App Mobile Varejo ABC) → pontuação ~4.5 — excelente
+// Demanda 2 (Gestão de Contratos TechCorp) → pontuação ~3.4 — boa
+// Demanda 3 (Portal Transparência) → pontuação ~2.3 — razoável
+export const mockRespostasAvaliacao: RespostaAvaliacao[] = [
+  // ─── DEMANDA 1: App Mobile Varejo ABC ─────────────────────────────────────
+  // Avaliadora: Ana Oliveira
+  { id: "rv-d1-a1-p1-1", demandaId: demandaIds.demanda1, criterioId: "criterio_1", perguntaId: "pergunta_1_1", valor: 5, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  { id: "rv-d1-a1-p1-2", demandaId: demandaIds.demanda1, criterioId: "criterio_1", perguntaId: "pergunta_1_2", valor: 5, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  { id: "rv-d1-a1-p2-1", demandaId: demandaIds.demanda1, criterioId: "criterio_2", perguntaId: "pergunta_2_1", valor: 4, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  { id: "rv-d1-a1-p2-2", demandaId: demandaIds.demanda1, criterioId: "criterio_2", perguntaId: "pergunta_2_2", valor: 4, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  { id: "rv-d1-a1-p3-1", demandaId: demandaIds.demanda1, criterioId: "criterio_3", perguntaId: "pergunta_3_1", valor: 4, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  { id: "rv-d1-a1-p3-2", demandaId: demandaIds.demanda1, criterioId: "criterio_3", perguntaId: "pergunta_3_2", valor: 5, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  { id: "rv-d1-a1-p4-1", demandaId: demandaIds.demanda1, criterioId: "criterio_4", perguntaId: "pergunta_4_1", valor: 4, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  { id: "rv-d1-a1-p4-2", demandaId: demandaIds.demanda1, criterioId: "criterio_4", perguntaId: "pergunta_4_2", valor: 4, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  { id: "rv-d1-a1-p5-1", demandaId: demandaIds.demanda1, criterioId: "criterio_5", perguntaId: "pergunta_5_1", valor: 5, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  { id: "rv-d1-a1-p5-2", demandaId: demandaIds.demanda1, criterioId: "criterio_5", perguntaId: "pergunta_5_2", valor: 5, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  { id: "rv-d1-a1-p6-1", demandaId: demandaIds.demanda1, criterioId: "criterio_6", perguntaId: "pergunta_6_1", valor: 4, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  // Avaliador: João Santos (segunda opinião)
+  { id: "rv-d1-a2-p1-1", demandaId: demandaIds.demanda1, criterioId: "criterio_1", perguntaId: "pergunta_1_1", valor: 5, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+  { id: "rv-d1-a2-p1-2", demandaId: demandaIds.demanda1, criterioId: "criterio_1", perguntaId: "pergunta_1_2", valor: 4, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+  { id: "rv-d1-a2-p2-1", demandaId: demandaIds.demanda1, criterioId: "criterio_2", perguntaId: "pergunta_2_1", valor: 5, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+  { id: "rv-d1-a2-p2-2", demandaId: demandaIds.demanda1, criterioId: "criterio_2", perguntaId: "pergunta_2_2", valor: 4, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+  { id: "rv-d1-a2-p3-1", demandaId: demandaIds.demanda1, criterioId: "criterio_3", perguntaId: "pergunta_3_1", valor: 5, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+  { id: "rv-d1-a2-p3-2", demandaId: demandaIds.demanda1, criterioId: "criterio_3", perguntaId: "pergunta_3_2", valor: 5, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+  { id: "rv-d1-a2-p4-1", demandaId: demandaIds.demanda1, criterioId: "criterio_4", perguntaId: "pergunta_4_1", valor: 4, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+  { id: "rv-d1-a2-p4-2", demandaId: demandaIds.demanda1, criterioId: "criterio_4", perguntaId: "pergunta_4_2", valor: 5, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+  { id: "rv-d1-a2-p5-1", demandaId: demandaIds.demanda1, criterioId: "criterio_5", perguntaId: "pergunta_5_1", valor: 5, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+  { id: "rv-d1-a2-p5-2", demandaId: demandaIds.demanda1, criterioId: "criterio_5", perguntaId: "pergunta_5_2", valor: 4, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+  { id: "rv-d1-a2-p6-1", demandaId: demandaIds.demanda1, criterioId: "criterio_6", perguntaId: "pergunta_6_1", valor: 4, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+
+  // ─── DEMANDA 2: Gestão de Contratos TechCorp ──────────────────────────────
+  // Avaliadora: Ana Oliveira
+  { id: "rv-d2-a1-p1-1", demandaId: demandaIds.demanda2, criterioId: "criterio_1", perguntaId: "pergunta_1_1", valor: 4, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d2-a1-p1-2", demandaId: demandaIds.demanda2, criterioId: "criterio_1", perguntaId: "pergunta_1_2", valor: 4, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d2-a1-p2-1", demandaId: demandaIds.demanda2, criterioId: "criterio_2", perguntaId: "pergunta_2_1", valor: 3, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d2-a1-p2-2", demandaId: demandaIds.demanda2, criterioId: "criterio_2", perguntaId: "pergunta_2_2", valor: 3, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d2-a1-p3-1", demandaId: demandaIds.demanda2, criterioId: "criterio_3", perguntaId: "pergunta_3_1", valor: 3, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d2-a1-p3-2", demandaId: demandaIds.demanda2, criterioId: "criterio_3", perguntaId: "pergunta_3_2", valor: 4, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d2-a1-p4-1", demandaId: demandaIds.demanda2, criterioId: "criterio_4", perguntaId: "pergunta_4_1", valor: 4, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d2-a1-p4-2", demandaId: demandaIds.demanda2, criterioId: "criterio_4", perguntaId: "pergunta_4_2", valor: 3, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d2-a1-p5-1", demandaId: demandaIds.demanda2, criterioId: "criterio_5", perguntaId: "pergunta_5_1", valor: 3, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d2-a1-p5-2", demandaId: demandaIds.demanda2, criterioId: "criterio_5", perguntaId: "pergunta_5_2", valor: 3, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d2-a1-p6-1", demandaId: demandaIds.demanda2, criterioId: "criterio_6", perguntaId: "pergunta_6_1", valor: 3, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+
+  // ─── DEMANDA 3: Portal de Transparência ───────────────────────────────────
+  // Avaliador: João Santos (avaliação parcial — em andamento)
+  { id: "rv-d3-a2-p1-1", demandaId: demandaIds.demanda3, criterioId: "criterio_1", perguntaId: "pergunta_1_1", valor: 3, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d3-a2-p1-2", demandaId: demandaIds.demanda3, criterioId: "criterio_1", perguntaId: "pergunta_1_2", valor: 2, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d3-a2-p2-1", demandaId: demandaIds.demanda3, criterioId: "criterio_2", perguntaId: "pergunta_2_1", valor: 2, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d3-a2-p2-2", demandaId: demandaIds.demanda3, criterioId: "criterio_2", perguntaId: "pergunta_2_2", valor: 2, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d3-a2-p3-1", demandaId: demandaIds.demanda3, criterioId: "criterio_3", perguntaId: "pergunta_3_1", valor: 2, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d3-a2-p3-2", demandaId: demandaIds.demanda3, criterioId: "criterio_3", perguntaId: "pergunta_3_2", valor: 3, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d3-a2-p4-1", demandaId: demandaIds.demanda3, criterioId: "criterio_4", perguntaId: "pergunta_4_1", valor: 3, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d3-a2-p4-2", demandaId: demandaIds.demanda3, criterioId: "criterio_4", perguntaId: "pergunta_4_2", valor: 2, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d3-a2-p5-1", demandaId: demandaIds.demanda3, criterioId: "criterio_5", perguntaId: "pergunta_5_1", valor: 2, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d3-a2-p5-2", demandaId: demandaIds.demanda3, criterioId: "criterio_5", perguntaId: "pergunta_5_2", valor: 2, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d3-a2-p6-1", demandaId: demandaIds.demanda3, criterioId: "criterio_6", perguntaId: "pergunta_6_1", valor: 2, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+];

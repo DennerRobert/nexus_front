@@ -356,29 +356,34 @@ export const useDemandaStore = create<DemandaStore>()(
     }),
     {
       name: "nexus-demanda-store",
-      version: 2, // Incrementar versão para forçar migração
+      version: 3,
       migrate: (persistedState: unknown, version: number) => {
         const state = persistedState as DemandaState;
-        
-        // Migrar dados antigos para nova estrutura
-        if (version < 2) {
+
+        // v3: IDs das demandas mock passaram a ser fixos — reinicia dados mock
+        if (version < 3) {
+          const mockIds = new Set(mockDemandas.map((d) => d.id));
+          const demandasUsuario = (state.demandas || []).filter(
+            (d) => !mockIds.has(d.id)
+          );
           return {
             ...state,
-            demandas: (state.demandas || mockDemandas).map(demandaComNovosCampos),
+            demandas: [
+              ...mockDemandas.map(demandaComNovosCampos),
+              ...demandasUsuario.map(demandaComNovosCampos),
+            ],
           };
         }
-        
+
         return state;
       },
       merge: (persistedState, currentState) => {
         const persisted = persistedState as Partial<DemandaState>;
-        
-        // Se não há demandas persistidas ou array vazio, usar mock
+
         if (!persisted.demandas || persisted.demandas.length === 0) {
           return currentState;
         }
-        
-        // Garantir que demandas antigas tenham novos campos
+
         return {
           ...currentState,
           demandas: persisted.demandas.map(demandaComNovosCampos),
