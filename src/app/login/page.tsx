@@ -92,7 +92,7 @@ const LoginPage = () => {
 
         {/* Footer */}
         <div className="relative z-10 text-sm text-slate-500">
-          © 2026 Nexus SGPI. Todos os direitos reservados.
+          © 2026 Nexus. Todos os direitos reservados.
         </div>
       </div>
 
