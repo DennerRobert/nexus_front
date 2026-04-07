@@ -20,6 +20,7 @@ export interface Empresa {
   ativa: boolean;
   formularioTipo?: FormularioTipo;
   setor?: string;
+  dadosAdicionais?: Record<string, string>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,4 +32,5 @@ export interface EmpresaFormData {
   ativa: boolean;
   formularioTipo?: FormularioTipo;
   setor?: string;
+  dadosAdicionais?: Record<string, string>;
 }

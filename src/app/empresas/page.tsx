@@ -1,25 +1,21 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { type ColumnDef } from "@tanstack/react-table";
+import Link from "next/link";
 import { Layout } from "@/components/Layout";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
-import { Modal } from "@/components/ui/Modal";
-import { Input } from "@/components/ui/Input";
-import { Textarea } from "@/components/ui/Textarea";
+import { EmpresaFormModal } from "@/components/EmpresaFormModal";
 import { useEmpresaStore } from "@/stores/empresa.store";
 import { useColaboradorStore } from "@/stores/colaborador.store";
 import { useProjetoStore } from "@/stores/projeto.store";
-import { empresaSchema, type EmpresaSchemaType } from "@/schemas/empresa.schema";
-import type { Empresa } from "@/interfaces/empresa.interface";
+import type { Empresa, EmpresaFormData } from "@/interfaces/empresa.interface";
 import { formatDate } from "@/utils/formatters";
-import { Plus, Building2, Users, FolderKanban, Save, Edit } from "lucide-react";
+import { Plus, Building2, Users, FolderKanban, Edit, Eye } from "lucide-react";
 
 const EmpresasPage = () => {
   const { getAll, create, update } = useEmpresaStore();
@@ -30,36 +26,17 @@ const EmpresasPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingEmpresa, setEditingEmpresa] = useState<Empresa | null>(null);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-    reset,
-  } = useForm<EmpresaSchemaType>({
-    resolver: zodResolver(empresaSchema),
-    defaultValues: {
-      ativa: true,
-    },
-  });
-
   const handleOpenCreate = () => {
     setEditingEmpresa(null);
-    reset({ nome: "", cnpj: "", descricao: "", ativa: true });
     setShowModal(true);
   };
 
   const handleOpenEdit = (empresa: Empresa) => {
     setEditingEmpresa(empresa);
-    reset({
-      nome: empresa.nome,
-      cnpj: empresa.cnpj,
-      descricao: empresa.descricao || "",
-      ativa: empresa.ativa,
-    });
     setShowModal(true);
   };
 
-  const handleFormSubmit = (data: EmpresaSchemaType) => {
+  const handleSalvar = (data: EmpresaFormData) => {
     try {
       if (editingEmpresa) {
         update(editingEmpresa.id, data);
@@ -69,7 +46,6 @@ const EmpresasPage = () => {
         toast.success("Empresa criada com sucesso!");
       }
       setShowModal(false);
-      reset();
     } catch {
       toast.error("Erro ao salvar empresa");
     }
@@ -86,7 +62,6 @@ const EmpresasPage = () => {
       (acc, e) => acc + getProjetosByEmpresa(e.id).length,
       0
     );
-
     return { total, ativas, totalColaboradores, totalProjetos };
   }, [empresas, getByEmpresa, getProjetosByEmpresa]);
 
@@ -103,11 +78,11 @@ const EmpresasPage = () => {
         ),
       },
       {
-        accessorKey: "descricao",
-        header: "Descrição",
+        accessorKey: "setor",
+        header: "Setor",
         cell: ({ row }) => (
-          <p className="text-sm text-slate-400 truncate max-w-xs">
-            {row.original.descricao || "-"}
+          <p className="text-sm text-slate-400">
+            {row.original.setor || "-"}
           </p>
         ),
       },
@@ -155,13 +130,20 @@ const EmpresasPage = () => {
         id: "actions",
         header: "",
         cell: ({ row }) => (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleOpenEdit(row.original)}
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Link href={`/empresas/${row.original.id}`}>
+              <Button variant="ghost" size="sm">
+                <Eye className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleOpenEdit(row.original)}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+          </div>
         ),
       },
     ],
@@ -175,7 +157,10 @@ const EmpresasPage = () => {
     >
       <div className="space-y-6">
         <div className="flex justify-end">
-          <Button onClick={handleOpenCreate} leftIcon={<Plus className="h-4 w-4" />}>
+          <Button
+            onClick={handleOpenCreate}
+            leftIcon={<Plus className="h-4 w-4" />}
+          >
             Nova Empresa
           </Button>
         </div>
@@ -203,52 +188,12 @@ const EmpresasPage = () => {
         />
       </div>
 
-      <Modal
+      <EmpresaFormModal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={editingEmpresa ? "Editar Empresa" : "Nova Empresa"}
-      >
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
-          <Input
-            label="Nome da Empresa"
-            placeholder="Ex: Alpha Tecnologia"
-            error={errors.nome?.message}
-            {...register("nome")}
-          />
-          <Input
-            label="CNPJ"
-            placeholder="00.000.000/0000-00"
-            error={errors.cnpj?.message}
-            {...register("cnpj")}
-          />
-          <Textarea
-            label="Descrição"
-            placeholder="Breve descrição da empresa..."
-            rows={3}
-            error={errors.descricao?.message}
-            {...register("descricao")}
-          />
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="ativa"
-              className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500"
-              {...register("ativa")}
-            />
-            <label htmlFor="ativa" className="text-sm text-slate-300">
-              Empresa ativa
-            </label>
-          </div>
-          <div className="flex justify-end gap-3 pt-4">
-            <Button variant="outline" type="button" onClick={() => setShowModal(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />}>
-              {editingEmpresa ? "Salvar" : "Criar"}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+        empresa={editingEmpresa ?? undefined}
+        onSalvar={handleSalvar}
+      />
     </Layout>
   );
 };
