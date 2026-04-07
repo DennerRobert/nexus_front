@@ -8,6 +8,7 @@ import {
   ETAPAS_ORDEM,
   ETAPA_DEMANDA_LABELS,
 } from "@/interfaces/etapa-demanda.interface";
+import { mockKanbanConfigs } from "@/utils/mock-data";
 
 const criarConfigPadrao = (empresaId: string): KanbanEmpresaConfig => ({
   empresaId,
@@ -35,7 +36,7 @@ type KanbanConfigStore = KanbanConfigState & KanbanConfigActions;
 export const useKanbanConfigStore = create<KanbanConfigStore>()(
   persist(
     (set, get) => ({
-      configs: {},
+      configs: mockKanbanConfigs,
 
       getConfig: (empresaId) =>
         get().configs[empresaId] ?? criarConfigPadrao(empresaId),
@@ -55,11 +56,32 @@ export const useKanbanConfigStore = create<KanbanConfigStore>()(
 
       resetConfig: (empresaId) => {
         set((state) => {
-          const { [empresaId]: _removed, ...rest } = state.configs;
-          return { configs: rest };
+          const configPadrao =
+            mockKanbanConfigs[empresaId] ?? criarConfigPadrao(empresaId);
+          return {
+            configs: {
+              ...state.configs,
+              [empresaId]: configPadrao,
+            },
+          };
         });
       },
     }),
-    { name: "sgpi-kanban-config" }
+    {
+      name: "sgpi-kanban-config",
+      // Garante que os configs mock da sessão atual sempre estejam presentes,
+      // mas preserva customizações salvas pelo usuário para os mesmos IDs.
+      merge: (persistedState, currentState) => {
+        const persisted =
+          (persistedState as Partial<KanbanConfigState>)?.configs ?? {};
+        return {
+          ...currentState,
+          configs: {
+            ...mockKanbanConfigs,
+            ...persisted,
+          },
+        };
+      },
+    }
   )
 );

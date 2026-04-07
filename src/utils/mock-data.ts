@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import type { Empresa } from "@/interfaces/empresa.interface";
+import type { KanbanEmpresaConfig } from "@/interfaces/kanban-config.interface";
 import type {
   Colaborador,
   EspecialidadeColaborador,
@@ -37,7 +38,7 @@ const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 const sixMonthsAhead = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000);
 
 // IDs fixos para referências
-const empresaIds = {
+export const empresaIds = {
   alpha: uuidv4(),
   beta: uuidv4(),
   gama: uuidv4(),
@@ -700,6 +701,72 @@ export const mockAlocacoes: Alocacao[] = [
     updatedAt: now,
   },
 ];
+
+// ─── Mock Kanban Configs por Empresa ─────────────────────────────────────────
+// Cada empresa possui um fluxo de demandas customizado que reflete sua natureza.
+
+// Alpha Tecnologia — Fluxo ágil focado em inovação de produto digital.
+// Etapas de comitê e devoluções ficam ocultas: o processo é direto da ideia à entrega.
+const kanbanConfigAlpha: KanbanEmpresaConfig = {
+  empresaId: empresaIds.alpha,
+  etapas: [
+    { etapa: "ideia_recebida",             titulo: "Nova Ideia",         visivel: true,  ordem: 0 },
+    { etapa: "analise_inicial",             titulo: "Triagem Técnica",    visivel: true,  ordem: 1 },
+    { etapa: "analise_comite",              titulo: "Análise Comitê",     visivel: false, ordem: 2 },
+    { etapa: "devolucao_proponente",        titulo: "Devolução",          visivel: false, ordem: 3 },
+    { etapa: "readequacao_recebida",        titulo: "Readequação",        visivel: false, ordem: 4 },
+    { etapa: "validacao_problema",          titulo: "Prova de Conceito",  visivel: true,  ordem: 5 },
+    { etapa: "encaminhado_grupo_trabalho",  titulo: "Em Desenvolvimento", visivel: true,  ordem: 6 },
+    { etapa: "arquivado",                   titulo: "Arquivado",          visivel: false, ordem: 7 },
+    { etapa: "fora_time_estrategico",       titulo: "Descartado",         visivel: false, ordem: 8 },
+    { etapa: "concluido",                   titulo: "Entregue",           visivel: true,  ordem: 9 },
+  ],
+  updatedAt: new Date(),
+};
+
+// Beta Solutions — Fluxo operacional completo com aprovação gerencial e ciclos de revisão.
+// Foco em automação e digitalização: demandas passam por comitê antes de ir para implementação.
+const kanbanConfigBeta: KanbanEmpresaConfig = {
+  empresaId: empresaIds.beta,
+  etapas: [
+    { etapa: "ideia_recebida",             titulo: "Solicitação",          visivel: true,  ordem: 0 },
+    { etapa: "analise_inicial",             titulo: "Análise de Viabilidade", visivel: true, ordem: 1 },
+    { etapa: "analise_comite",              titulo: "Aprovação Gerencial", visivel: true,  ordem: 2 },
+    { etapa: "devolucao_proponente",        titulo: "Revisão Necessária",  visivel: true,  ordem: 3 },
+    { etapa: "readequacao_recebida",        titulo: "Revisão Recebida",    visivel: true,  ordem: 4 },
+    { etapa: "validacao_problema",          titulo: "Validação",           visivel: false, ordem: 5 },
+    { etapa: "encaminhado_grupo_trabalho",  titulo: "Em Implementação",    visivel: true,  ordem: 6 },
+    { etapa: "arquivado",                   titulo: "Arquivado",           visivel: false, ordem: 7 },
+    { etapa: "fora_time_estrategico",       titulo: "Fora do Escopo",      visivel: false, ordem: 8 },
+    { etapa: "concluido",                   titulo: "Implementado",        visivel: true,  ordem: 9 },
+  ],
+  updatedAt: new Date(),
+};
+
+// Gama Labs — Fluxo científico de P&D com validação de hipóteses e arquivamento explícito.
+// Centro de inovação e pesquisa: etapas de devoluções são substituídas por revisão de conselho.
+const kanbanConfigGama: KanbanEmpresaConfig = {
+  empresaId: empresaIds.gama,
+  etapas: [
+    { etapa: "ideia_recebida",             titulo: "Hipótese",              visivel: true, ordem: 0 },
+    { etapa: "analise_inicial",             titulo: "Revisão Científica",   visivel: true, ordem: 1 },
+    { etapa: "analise_comite",              titulo: "Avaliação do Conselho",visivel: true, ordem: 2 },
+    { etapa: "devolucao_proponente",        titulo: "Devolução",            visivel: false, ordem: 3 },
+    { etapa: "readequacao_recebida",        titulo: "Readequação",          visivel: false, ordem: 4 },
+    { etapa: "validacao_problema",          titulo: "Validação de Hipótese",visivel: true, ordem: 5 },
+    { etapa: "encaminhado_grupo_trabalho",  titulo: "Pesquisa Ativa",       visivel: true, ordem: 6 },
+    { etapa: "arquivado",                   titulo: "Descontinuado",        visivel: true, ordem: 7 },
+    { etapa: "fora_time_estrategico",       titulo: "Fora do Roadmap",      visivel: true, ordem: 8 },
+    { etapa: "concluido",                   titulo: "Publicado",            visivel: true, ordem: 9 },
+  ],
+  updatedAt: new Date(),
+};
+
+export const mockKanbanConfigs: Record<string, KanbanEmpresaConfig> = {
+  [empresaIds.alpha]: kanbanConfigAlpha,
+  [empresaIds.beta]: kanbanConfigBeta,
+  [empresaIds.gama]: kanbanConfigGama,
+};
 
 export const getEmpresaById = (id: string): Empresa | undefined =>
   mockEmpresas.find((e) => e.id === id);
