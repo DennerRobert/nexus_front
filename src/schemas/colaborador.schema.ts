@@ -17,53 +17,96 @@ export const areaEspecialidadeEnum = z.enum([
   "mobile",
   "devops",
   "dados",
+  "dba",
   "ia_ml",
   "qa",
   "ux_ui",
   "seguranca",
   "cloud",
   "arquitetura",
+  "game_dev",
 ]);
 
 export const tecnologiaEnum = z.enum([
-  // Frontend
-  "react", "nextjs", "vue", "angular", "svelte", "tailwind",
+  // Frontend — Frameworks
+  "react", "nextjs", "vue", "nuxtjs", "angular", "svelte", "sveltekit", "tailwind",
+  // Frontend — Linguagens
   "typescript", "javascript", "html_css", "sass", "styled_components",
-  "redux", "zustand",
-  // Backend
+  // Frontend — Estado & Dados
+  "redux", "zustand", "pinia", "tanstack_query",
+  // Frontend — UI & Componentes
+  "radix_ui", "shadcn_ui", "framer_motion",
+  // Frontend — Utilitários
+  "axios", "date_fns", "dayjs",
+  // Backend — Linguagens
   "nodejs", "python", "java", "csharp", "go", "php", "ruby", "rust", "elixir",
-  "express", "nestjs", "fastapi", "django", "spring", "dotnet",
+  // Backend — Frameworks Web
+  "express", "nestjs", "fastapi", "django", "flask", "spring", "dotnet",
+  "aspnet_core", "laravel", "gin", "echo", "rails",
+  // Backend — Auth
+  "passport_js", "nextauth", "jsonwebtoken", "bcrypt",
+  // Backend — Comunicação
+  "socket_io", "grpc", "apollo",
+  // Backend — Utilitários
+  "winston", "lodash",
   // Mobile
-  "react_native", "flutter", "swift", "kotlin", "ionic", "expo",
-  // DevOps
+  "react_native", "flutter", "swift", "swift_ui", "kotlin", "kmp", "ionic", "expo",
+  // DevOps — Infraestrutura
   "docker", "kubernetes", "aws", "azure", "gcp", "terraform",
   "ansible", "jenkins", "github_actions", "gitlab_ci", "argocd",
-  // Dados
-  "sql", "postgresql", "mysql", "mongodb", "redis", "spark",
-  "airflow", "dbt", "snowflake", "databricks", "kafka", "powerbi", "tableau",
-  // IA/ML
-  "tensorflow", "pytorch", "scikit_learn", "pandas", "numpy",
-  "llms", "langchain", "huggingface", "opencv",
-  // QA
-  "selenium", "cypress", "jest", "playwright", "junit", "pytest", "postman",
+  "prometheus", "grafana",
+  // DevOps — Scripts & CLI
+  "boto3", "commander_js", "click_py",
+  // DevOps — Políticas
+  "checkov", "inspec",
+  // Dados — Relacionais
+  "sql", "postgresql", "mysql", "sql_server", "oracle",
+  // Dados — NoSQL
+  "mongodb", "redis", "cassandra",
+  // Dados — Analytics & Pipelines
+  "spark", "airflow", "dbt", "snowflake", "databricks", "kafka", "powerbi", "tableau",
+  // ORMs
+  "hibernate", "prisma_orm", "entity_framework", "sqlalchemy",
+  // DBA — Drivers & Conectores
+  "pg_driver", "mysql2", "psycopg2", "mongoose",
+  // DBA — Migrações
+  "knex", "flyway", "alembic",
+  // IA/ML — Frameworks
+  "tensorflow", "pytorch", "scikit_learn", "langchain",
+  // IA/ML — Matemática
+  "pandas", "numpy", "matplotlib", "scipy",
+  // IA/ML — Visão & PLN
+  "opencv", "nltk", "spacy", "huggingface",
+  // IA/ML — Serviços
+  "llms",
+  // QA — E2E
+  "selenium", "cypress", "playwright", "appium",
+  // QA — Unitários
+  "jest", "junit", "pytest",
+  // QA — Suporte
+  "faker_js", "msw", "sinon", "chai", "postman",
   // UX/UI
   "figma", "adobe_xd", "sketch", "photoshop", "illustrator",
-  // Segurança
-  "owasp", "pentest", "siem", "vault",
+  // Segurança — Análise
+  "owasp", "burpsuite", "sonarqube", "snyk", "pentest", "siem",
+  // Segurança — Gestão & Cloud
+  "vault", "prisma_cloud",
+  // Segurança — Criptografia
+  "pycryptodome", "libsodium",
+  // Segurança — Scanner
+  "scapy", "requests_py",
+  // Game Dev
+  "unity", "unreal_engine", "godot",
   // Outros
   "git", "linux", "agile", "scrum",
 ]);
 
-// Schema para uma especialidade do colaborador
 export const especialidadeColaboradorSchema = z.object({
   area: areaEspecialidadeEnum,
   senioridade: senioridadeEnum,
-  tecnologias: z
-    .array(tecnologiaEnum)
-    .min(1, "Selecione pelo menos uma tecnologia"),
-  tecnologiasCustom: z
-    .array(z.string().min(1).max(50))
-    .optional(),
+  frameworkPrincipal: tecnologiaEnum,
+  tecnologias: z.array(tecnologiaEnum),
+  tecnologiasCustom: z.array(z.string().min(1).max(50)).optional(),
 });
 
 export const colaboradorSchema = z.object({
@@ -79,7 +122,11 @@ export const colaboradorSchema = z.object({
     .min(1, "A matrícula é obrigatória")
     .max(20, "A matrícula deve ter no máximo 20 caracteres"),
 
-  empresaId: z.string().min(1, "Selecione uma empresa"),
+  empresaIds: z
+    .array(z.string().min(1))
+    .min(1, "Selecione pelo menos uma empresa"),
+
+  setorIds: z.array(z.string()),
 
   cargo: z
     .string()

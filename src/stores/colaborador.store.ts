@@ -32,7 +32,7 @@ export const useColaboradorStore = create<ColaboradorStore>((set, get) => ({
   getById: (id: string) => get().colaboradores.find((c) => c.id === id),
 
   getByEmpresa: (empresaId: string) =>
-    get().colaboradores.filter((c) => c.empresaId === empresaId && c.ativo),
+    get().colaboradores.filter((c) => c.empresaIds.includes(empresaId) && c.ativo),
 
   getOcupacao: (colaboradorId: string) => {
     const alocacoesAtivas = mockAlocacoes.filter(

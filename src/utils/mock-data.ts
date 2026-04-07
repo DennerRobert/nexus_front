@@ -177,19 +177,21 @@ export const mockClientes: Cliente[] = [
   },
 ];
 
-// Especialidades com a nova estrutura (area, senioridade, tecnologias)
+// Especialidades com a nova estrutura (area, senioridade, frameworkPrincipal, tecnologias)
 const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
   // Colab 1 - Arquiteto de Software
   [
     {
       area: "backend",
       senioridade: "senior",
-      tecnologias: ["nodejs", "python", "postgresql", "docker", "aws"],
+      frameworkPrincipal: "nestjs",
+      tecnologias: ["nodejs", "python", "postgresql", "docker", "aws", "apollo", "socket_io", "jsonwebtoken", "winston"],
     },
     {
       area: "arquitetura",
       senioridade: "senior",
-      tecnologias: ["aws", "kubernetes", "kafka", "mongodb"],
+      frameworkPrincipal: "aws",
+      tecnologias: ["kubernetes", "kafka", "mongodb", "terraform", "grpc", "apollo"],
     },
   ],
   // Colab 2 - UX Designer
@@ -197,12 +199,14 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "ux_ui",
       senioridade: "pleno",
-      tecnologias: ["figma", "adobe_xd", "html_css"],
+      frameworkPrincipal: "figma",
+      tecnologias: ["adobe_xd", "html_css", "framer_motion"],
     },
     {
       area: "frontend",
       senioridade: "junior",
-      tecnologias: ["react", "tailwind", "javascript"],
+      frameworkPrincipal: "react",
+      tecnologias: ["tailwind", "javascript", "radix_ui", "axios"],
     },
   ],
   // Colab 3 - Desenvolvedor Fullstack
@@ -210,7 +214,8 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "fullstack",
       senioridade: "senior",
-      tecnologias: ["react", "nextjs", "nodejs", "typescript", "postgresql"],
+      frameworkPrincipal: "nextjs",
+      tecnologias: ["react", "nodejs", "typescript", "postgresql", "tanstack_query", "axios", "socket_io", "jsonwebtoken"],
     },
   ],
   // Colab 4 - Desenvolvedor Mobile
@@ -218,7 +223,8 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "mobile",
       senioridade: "pleno",
-      tecnologias: ["react_native", "expo", "typescript", "kotlin"],
+      frameworkPrincipal: "react_native",
+      tecnologias: ["expo", "typescript", "kotlin", "axios", "tanstack_query"],
     },
   ],
   // Colab 5 - Engenheiro DevOps
@@ -226,12 +232,14 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "devops",
       senioridade: "senior",
-      tecnologias: ["docker", "kubernetes", "terraform", "aws", "github_actions"],
+      frameworkPrincipal: "kubernetes",
+      tecnologias: ["docker", "terraform", "aws", "github_actions", "prometheus", "grafana", "boto3", "checkov"],
     },
     {
       area: "cloud",
       senioridade: "senior",
-      tecnologias: ["aws", "azure", "gcp"],
+      frameworkPrincipal: "aws",
+      tecnologias: ["azure", "gcp", "terraform", "boto3", "inspec"],
     },
   ],
   // Colab 6 - Cientista de Dados
@@ -239,12 +247,14 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "dados",
       senioridade: "especialista",
-      tecnologias: ["python", "spark", "airflow", "sql", "databricks"],
+      frameworkPrincipal: "spark",
+      tecnologias: ["python", "airflow", "sql", "databricks", "kafka", "matplotlib", "scipy"],
     },
     {
       area: "ia_ml",
       senioridade: "pleno",
-      tecnologias: ["pytorch", "scikit_learn", "pandas", "numpy"],
+      frameworkPrincipal: "pytorch",
+      tecnologias: ["scikit_learn", "pandas", "numpy", "langchain", "spacy", "nltk", "huggingface"],
     },
   ],
   // Colab 7 - Analista de QA
@@ -252,7 +262,8 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "qa",
       senioridade: "pleno",
-      tecnologias: ["cypress", "jest", "playwright", "postman"],
+      frameworkPrincipal: "cypress",
+      tecnologias: ["jest", "playwright", "postman", "appium", "faker_js", "msw", "sinon", "chai"],
     },
   ],
   // Colab 8 - Product Owner
@@ -260,7 +271,8 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "frontend",
       senioridade: "pleno",
-      tecnologias: ["figma", "html_css"],
+      frameworkPrincipal: "react",
+      tecnologias: ["html_css", "tailwind", "axios", "date_fns"],
       tecnologiasCustom: ["Jira", "Confluence"],
     },
   ],
@@ -269,7 +281,8 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "devops",
       senioridade: "pleno",
-      tecnologias: ["github_actions", "gitlab_ci"],
+      frameworkPrincipal: "github_actions",
+      tecnologias: ["gitlab_ci", "docker", "checkov", "inspec"],
       tecnologiasCustom: ["Jira", "Miro"],
     },
   ],
@@ -278,7 +291,8 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "backend",
       senioridade: "junior",
-      tecnologias: ["nodejs", "express", "typescript", "postgresql"],
+      frameworkPrincipal: "express",
+      tecnologias: ["nodejs", "typescript", "postgresql", "jsonwebtoken", "bcrypt", "winston", "lodash"],
     },
   ],
   // Colab 11 - Desenvolvedor Frontend
@@ -286,7 +300,8 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "frontend",
       senioridade: "pleno",
-      tecnologias: ["react", "nextjs", "tailwind", "typescript", "zustand"],
+      frameworkPrincipal: "nextjs",
+      tecnologias: ["react", "tailwind", "typescript", "zustand", "tanstack_query", "radix_ui", "shadcn_ui", "axios", "date_fns"],
     },
   ],
   // Colab 12 - Desenvolvedor Fullstack
@@ -294,12 +309,14 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "fullstack",
       senioridade: "senior",
-      tecnologias: ["react", "nodejs", "typescript", "mongodb"],
+      frameworkPrincipal: "react",
+      tecnologias: ["nodejs", "typescript", "mongodb", "tanstack_query", "axios", "socket_io", "jsonwebtoken"],
     },
     {
       area: "mobile",
       senioridade: "pleno",
-      tecnologias: ["react_native", "expo"],
+      frameworkPrincipal: "react_native",
+      tecnologias: ["expo", "typescript", "axios"],
     },
   ],
   // Colab 13 - Engenheiro DevOps
@@ -307,7 +324,8 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "devops",
       senioridade: "pleno",
-      tecnologias: ["docker", "kubernetes", "aws", "terraform"],
+      frameworkPrincipal: "terraform",
+      tecnologias: ["docker", "kubernetes", "aws", "grafana", "prometheus", "boto3", "checkov", "inspec"],
     },
   ],
   // Colab 14 - UX/UI Designer
@@ -315,7 +333,8 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "ux_ui",
       senioridade: "junior",
-      tecnologias: ["figma", "sketch", "photoshop"],
+      frameworkPrincipal: "figma",
+      tecnologias: ["sketch", "photoshop", "illustrator", "framer_motion"],
     },
   ],
   // Colab 15 - Engenheiro de Dados
@@ -323,12 +342,14 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "dados",
       senioridade: "senior",
-      tecnologias: ["python", "spark", "airflow", "dbt", "snowflake", "kafka"],
+      frameworkPrincipal: "airflow",
+      tecnologias: ["python", "spark", "dbt", "snowflake", "kafka", "powerbi", "matplotlib", "scipy"],
     },
     {
       area: "backend",
       senioridade: "pleno",
-      tecnologias: ["python", "fastapi", "postgresql"],
+      frameworkPrincipal: "fastapi",
+      tecnologias: ["python", "postgresql", "sqlalchemy", "psycopg2", "alembic"],
     },
   ],
   // Colab 16 - Desenvolvedor Frontend
@@ -336,7 +357,8 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "frontend",
       senioridade: "junior",
-      tecnologias: ["react", "javascript", "html_css", "tailwind"],
+      frameworkPrincipal: "react",
+      tecnologias: ["javascript", "html_css", "tailwind", "redux", "axios", "dayjs"],
     },
   ],
   // Colab 17 - QA Engineer
@@ -344,12 +366,14 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "qa",
       senioridade: "pleno",
-      tecnologias: ["selenium", "cypress", "jest", "pytest"],
+      frameworkPrincipal: "playwright",
+      tecnologias: ["selenium", "cypress", "jest", "pytest", "faker_js", "chai", "sinon", "msw"],
     },
     {
       area: "devops",
       senioridade: "junior",
-      tecnologias: ["docker", "github_actions"],
+      frameworkPrincipal: "github_actions",
+      tecnologias: ["docker", "checkov"],
     },
   ],
   // Colab 18 - Tech Lead
@@ -357,12 +381,14 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "arquitetura",
       senioridade: "lider",
-      tecnologias: ["aws", "kubernetes", "kafka", "postgresql", "redis"],
+      frameworkPrincipal: "aws",
+      tecnologias: ["kubernetes", "kafka", "postgresql", "redis", "terraform", "grpc", "apollo"],
     },
     {
       area: "backend",
       senioridade: "senior",
-      tecnologias: ["nodejs", "python", "go", "typescript"],
+      frameworkPrincipal: "nestjs",
+      tecnologias: ["nodejs", "python", "go", "typescript", "passport_js", "jsonwebtoken", "socket_io", "winston"],
     },
   ],
 ];
@@ -431,11 +457,18 @@ const getCustoHoraBase = (especialidades: EspecialidadeColaborador[]): number =>
   return custoBase[maiorSenioridade];
 };
 
+// Distribuição de empresas por colaborador (N para N: alguns pertencem a mais de uma)
+const getEmpresaIdsForColab = (index: number): string[] => {
+  const primary = [empresaIds.alpha, empresaIds.beta, empresaIds.gama][index % 3];
+  // alguns colaboradores pertencem a mais de uma empresa (ex: índices múltiplos de 5)
+  if (index % 5 === 0 && index > 0) {
+    const secondary = [empresaIds.alpha, empresaIds.beta, empresaIds.gama][(index + 1) % 3];
+    return [primary, secondary];
+  }
+  return [primary];
+};
+
 export const mockColaboradores: Colaborador[] = nomes.map((nome, index) => {
-  const empresaIndex = index % 3;
-  const empresaId = [empresaIds.alpha, empresaIds.beta, empresaIds.gama][
-    empresaIndex
-  ];
   const especialidades = especialidadesDistribuidas[index];
   const custoBase = getCustoHoraBase(especialidades);
 
@@ -444,7 +477,8 @@ export const mockColaboradores: Colaborador[] = nomes.map((nome, index) => {
     nome,
     email: `${nome.toLowerCase().replace(" ", ".")}@grupo.com.br`,
     matricula: `MAT${String(index + 1).padStart(4, "0")}`,
-    empresaId,
+    empresaIds: getEmpresaIdsForColab(index),
+    setorIds: [],
     cargo: cargos[index],
     especialidades,
     custoHora: custoBase + Math.random() * 30,

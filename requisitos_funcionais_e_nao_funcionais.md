@@ -1,5 +1,5 @@
 # Sistema de Gestão de Portfólio Integrado (SGPI)
-## Documento de Requisitos - Versão 2.2
+## Documento de Requisitos - Versão 2.4
 
 ---
 
@@ -344,6 +344,16 @@ flowchart TB
 | **Perfil de Usuario** | Role/cargo do usuário que define suas permissões no sistema (ex: Administrador, Gestor de Inovação) |
 | **Permissão** | Direito de executar uma ação específica (visualizar, criar, editar, aprovar) em um módulo |
 | **Autorização** | Processo de verificação de permissões antes de permitir acesso a recursos ou ações |
+| **Sprint** | Ciclo de desenvolvimento de duração fixa (padrão: 14 dias), agrupando tarefas de um projeto |
+| **Sprint Ativa** | Sprint com status "ativa", na qual o squad está trabalhando atualmente |
+| **Registro de Horas** | Apontamento de horas trabalhadas por um colaborador em uma tarefa específica |
+| **Aprovação de Horas** | Processo de validação dos registros de horas por um aprovador autorizado |
+| **Comentário de Tarefa** | Mensagem textual vinculada a uma tarefa, registrada por um membro do squad |
+| **Notificação In-App** | Alerta exibido dentro do sistema, gerado por eventos relevantes (demanda aprovada, tarefa atribuída, etc.) |
+| **Categoria de Notificação** | Classificação da notificação por origem: demanda, projeto, tarefa |
+| **Kanban Configurável** | Quadro Kanban cujas colunas e visibilidade podem ser personalizadas por empresa |
+| **Formulário Customizável** | Conjunto de campos dinâmicos de uma empresa para capturar informações específicas em demandas |
+| **Campo de Formulário** | Elemento individual de um formulário customizável (texto, número, data, seleção, etc.) |
 
 ---
 
@@ -799,6 +809,176 @@ Grupo Econômico
 - RN15.6: Exportação está disponível em qualquer status
 - RN15.7: Planejamento aprovado pode ser editado, mas requer nova aprovação
 - RN15.8: Geração utiliza dados da demanda: problema, solução, benefícios, recursos, horizonte de inovação
+
+---
+
+### RF16: Gestão de Sprints
+
+**Descrição**: Sistema de organização de ciclos de desenvolvimento dentro de projetos em execução. Cada sprint agrupa tarefas em um período fixo, permitindo planejamento incremental e mensuração de velocidade do squad.
+
+**Referências**: Integra com RF13 (Kanban de tarefas), RF03 (colaboradores do squad), RF17 (registro de horas)
+
+**Funcionalidades**:
+
+1. **Ciclo de Vida da Sprint**:
+   - **Planejamento**: Sprint criada, aguardando início
+   - **Ativa**: Sprint em andamento (apenas uma ativa por projeto)
+   - **Concluída**: Sprint encerrada com tarefas finalizadas
+   - **Cancelada**: Sprint encerrada antes do fim planejado
+
+2. **Criação de Sprint**:
+   - Nome da sprint (ex: "Sprint 1", "Sprint de Homologação")
+   - Objetivo da sprint (descrição do foco do ciclo)
+   - Data de início e data de fim
+   - Número sequencial gerado automaticamente
+   - Status inicial: Planejamento
+
+3. **Gestão de Sprint**:
+   - **Iniciar Sprint**: Muda status de Planejamento para Ativa
+   - **Concluir Sprint**: Fecha a sprint; tarefas não concluídas retornam ao Backlog (sem sprint)
+   - **Cancelar Sprint**: Encerra antecipadamente; remove associação de todas as tarefas
+   - **Editar Sprint**: Permite ajustar nome, objetivo e datas enquanto em Planejamento
+
+4. **Visualização no Kanban**:
+   - Header acima do quadro Kanban exibindo: nome, objetivo, período e barra de progresso
+   - Progresso calculado como: tarefas concluídas / total de tarefas da sprint
+   - Seletor de sprint (dropdown) para filtrar tarefas por sprint no Kanban
+
+5. **Associação de Tarefas a Sprints**:
+   - Tarefa pode ser vinculada a uma sprint na criação ou edição
+   - Tarefas sem sprint aparecem no Backlog
+   - Vinculação automática baseada em status (tarefas em progresso → sprint ativa; concluídas → última concluída)
+
+6. **Progresso da Sprint**:
+   - Total de tarefas na sprint
+   - Quantidade de tarefas concluídas
+   - Percentual de progresso (concluídas / total × 100)
+
+**Regras de Negócio**:
+- RN16.1: Apenas projetos com status "Em Execução" podem ter sprints associadas
+- RN16.2: Apenas uma sprint pode estar ativa por projeto simultaneamente
+- RN16.3: Para iniciar uma sprint, não pode haver outra sprint ativa no mesmo projeto
+- RN16.4: Sprints ativas e concluídas não podem ser removidas
+- RN16.5: Ao concluir sprint, tarefas não concluídas são desassociadas (voltam ao Backlog)
+- RN16.6: Ao cancelar sprint, todas as tarefas são desassociadas da sprint
+- RN16.7: Duração padrão de sprint: 14 dias (configurável por empresa)
+- RN16.8: Número da sprint é sequencial e gerado automaticamente
+
+---
+
+### RF17: Registro e Aprovação de Horas por Tarefa
+
+**Descrição**: Sistema de apontamento de horas trabalhadas vinculado a tarefas individuais, com fluxo de aprovação para validação dos registros antes de contabilizar no projeto.
+
+**Referências**: Integra com RF13 (tarefas do projeto), RF03 (colaboradores), RF04 (custos de projeto)
+
+**Funcionalidades**:
+
+1. **Lançamento de Horas**:
+   - Colaborador registra horas em uma tarefa específica
+   - Campos obrigatórios: quantidade de horas (mínimo 0.5), data do trabalho, descrição da atividade
+   - Status inicial: Pendente
+   - Múltiplos registros por tarefa (um colaborador pode ter N registros para a mesma tarefa)
+
+2. **Fluxo de Aprovação**:
+   - **Pendente**: Registro submetido aguardando revisão
+   - **Aprovado**: Horas validadas; atualiza automaticamente `horasRealizadas` na tarefa
+   - **Rejeitado**: Registro recusado com motivo obrigatório informado pelo aprovador
+
+3. **Visualização de Registros**:
+   - Por tarefa: lista de todos os registros com status, data, horas e colaborador
+   - Por colaborador: histórico de todos os registros do profissional
+   - Por projeto: registros pendentes agrupados por projeto
+   - Total de horas aprovadas por tarefa
+
+4. **Gestão de Registros**:
+   - Remoção permitida apenas para registros em status Pendente ou Rejeitado
+   - Registros Aprovados são imutáveis (não podem ser removidos nem editados)
+
+**Regras de Negócio**:
+- RN17.1: Somente o colaborador responsável pela tarefa pode lançar horas
+- RN17.2: Apenas gestores do projeto ou superiores podem aprovar/rejeitar registros
+- RN17.3: Rejeição de registro exige motivo informado pelo aprovador
+- RN17.4: Aprovação de registro atualiza automaticamente as horas realizadas da tarefa
+- RN17.5: Registros aprovados não podem ser removidos ou editados
+- RN17.6: Quantidade mínima de horas por registro: 0.5h
+- RN17.7: Data do registro deve ser anterior ou igual à data atual
+
+---
+
+### RF18: Comentários em Tarefas
+
+**Descrição**: Sistema de comunicação assíncrona dentro de tarefas, permitindo que membros do squad troquem mensagens, registrem decisões e atualizem o contexto do trabalho diretamente na tarefa.
+
+**Referências**: Integra com RF13 (tarefas), RF19 (notificações)
+
+**Funcionalidades**:
+
+1. **Adição de Comentários**:
+   - Qualquer membro do squad pode comentar em tarefas do projeto
+   - Campo de texto livre com suporte a texto simples
+   - Registro automático de autor e timestamp
+
+2. **Listagem de Comentários**:
+   - Exibição cronológica dentro do modal de detalhes da tarefa
+   - Identificação do autor de cada comentário
+   - Data e hora de criação/atualização
+
+3. **Moderação**:
+   - Autor pode editar ou excluir seus próprios comentários
+   - Gestor do projeto pode excluir qualquer comentário
+
+4. **Notificação**:
+   - Ao adicionar comentário em tarefa com responsável diferente do autor, gera notificação in-app para o responsável (RF19)
+
+**Regras de Negócio**:
+- RN18.1: Comentários são vinculados individualmente a tarefas específicas
+- RN18.2: Apenas membros do squad do projeto podem comentar nas tarefas
+- RN18.3: Autor pode editar ou excluir seu próprio comentário a qualquer momento
+- RN18.4: Gestor do projeto pode excluir qualquer comentário
+- RN18.5: Comentário exige conteúdo não vazio (mínimo 1 caractere)
+
+---
+
+### RF19: Central de Notificações In-App
+
+**Descrição**: Sistema centralizado de notificações internas que alerta usuários sobre eventos relevantes do sistema (demandas, projetos, tarefas), com persistência, filtros e ações de gestão.
+
+**Referências**: Integra com RF01 (demandas), RF13 (tarefas/projetos), RF16 (sprints), RF18 (comentários)
+
+**Funcionalidades**:
+
+1. **Tipos de Notificação**:
+   - **Demandas**: demanda_criada, demanda_aprovada, demanda_rejeitada, demanda_em_analise, demanda_ajustes
+   - **Projetos**: projeto_atualizado, marco_proximo, alocacao_criada, sprint_iniciada
+   - **Tarefas**: tarefa_atribuida, comentario_adicionado
+
+2. **Categorias e Filtros**:
+   - Filtro por status: Todas, Não Lidas
+   - Filtro por categoria: Demanda, Projeto, Tarefa
+   - Contador de não lidas exibido no ícone do sino no menu lateral
+
+3. **Ações de Gestão**:
+   - Marcar notificação individual como lida
+   - Marcar todas como lidas
+   - Remover notificação individual
+   - Remover todas as notificações
+
+4. **Navegação**:
+   - Cada notificação possui link direto para a entidade relacionada (demanda, projeto ou tarefa)
+   - Clicar na notificação navega para a página correspondente
+
+5. **Persistência**:
+   - Estado de leitura persiste via localStorage
+   - Notificações são mantidas entre sessões até remoção explícita
+
+**Regras de Negócio**:
+- RN19.1: Notificações são geradas automaticamente pelo sistema a partir de eventos
+- RN19.2: Contador de não lidas é atualizado em tempo real no menu lateral
+- RN19.3: Persistência via localStorage garante manutenção do estado entre recarregamentos
+- RN19.4: Notificações removidas não podem ser recuperadas
+- RN19.5: Ao marcar como lida, o status é atualizado imediatamente na interface
+- RN19.6: Filtro de categoria é mutuamente exclusivo com filtro de status "não lidas"
 
 ---
 
@@ -1995,6 +2175,10 @@ Grupo Econômico
 | RF13 | RF01, RF03, RF04, RF08 | Monitoramento depende de projetos, alocações, custos e análise IA |
 | RF14 | RF01, RF02, RF03, RF05 | Multi-tenant depende de estrutura de empresas e projetos |
 | RF15 | RF01, RF08, RF13 | Planejamento depende de demanda, IA para geração e aba no projeto |
+| RF16 | RF13, RF03 | Sprints dependem de projetos e colaboradores/tarefas |
+| RF17 | RF16, RF03 | Registro de horas depende de sprints/tarefas e colaboradores |
+| RF18 | RF13 | Comentários dependem de tarefas do projeto |
+| RF19 | RF01, RF13, RF16 | Notificações são geradas por eventos de projetos, demandas e tarefas |
 
 ---
 
@@ -2231,6 +2415,45 @@ Grupo Econômico
 - **RN-D06**: Múltiplos anexos podem ser vinculados a uma demanda
 - **RN-D07**: Demanda pode ser visualizada em formato de tabela ou Kanban (10 colunas)
 - **RN-D08**: Drag-and-drop no Kanban valida transições permitidas antes de aplicar mudança
+- **RN-D09**: Kanban de demandas pode ser configurado por empresa (etapas visíveis e ordem)
+- **RN-D10**: Configuração do Kanban é por empresa; etapas ocultas não afetam o fluxo de transições
+
+### RN de Sprints (RN-SP)
+- **RN-SP01**: Apenas projetos com status "Em Execução" podem ter sprints criadas
+- **RN-SP02**: Apenas uma sprint pode estar ativa por projeto simultaneamente
+- **RN-SP03**: Para iniciar uma sprint, não pode haver outra sprint ativa no mesmo projeto
+- **RN-SP04**: Sprints ativas e concluídas não podem ser removidas
+- **RN-SP05**: Ao concluir sprint, tarefas não concluídas são desassociadas (voltam ao Backlog)
+- **RN-SP06**: Ao cancelar sprint, todas as tarefas da sprint ficam sem sprint associada
+- **RN-SP07**: Duração padrão de sprint: 14 dias (configurável por empresa)
+- **RN-SP08**: Número da sprint é sequencial e gerado automaticamente por projeto
+- **RN-SP09**: Progresso da sprint = (tarefas concluídas / total de tarefas da sprint) × 100
+- **RN-SP10**: Sprint em status Planejamento pode ser editada (nome, objetivo, datas)
+
+### RN de Registro de Horas (RN-RH)
+- **RN-RH01**: Quantidade mínima de horas por registro é 0.5h
+- **RN-RH02**: Data do registro deve ser anterior ou igual à data atual
+- **RN-RH03**: Registros aprovados não podem ser removidos ou editados
+- **RN-RH04**: Aprovação de registro atualiza automaticamente `horasRealizadas` na tarefa
+- **RN-RH05**: Rejeição de registro exige motivo informado pelo aprovador
+- **RN-RH06**: Registros com status Pendente ou Rejeitado podem ser removidos pelo colaborador
+- **RN-RH07**: Apenas gestores do projeto ou superiores podem aprovar ou rejeitar registros
+
+### RN de Notificações In-App (RN-NT)
+- **RN-NT01**: Notificações são geradas automaticamente pelo sistema a partir de eventos relevantes
+- **RN-NT02**: Contador de não lidas é exibido no menu lateral (ícone de sino)
+- **RN-NT03**: Estado de leitura das notificações persiste via localStorage entre sessões
+- **RN-NT04**: Notificações removidas não podem ser recuperadas
+- **RN-NT05**: Cada notificação possui link direto para a entidade relacionada
+- **RN-NT06**: Filtro de categoria (demanda, projeto, tarefa) e filtro de leitura (todas, não lidas) são independentes
+- **RN-NT07**: Ao marcar como lida, o status é atualizado imediatamente (sem recarregar)
+
+### RN de Formulário Customizável de Empresa (RN-FC)
+- **RN-FC01**: Cada empresa pode ter no máximo um formulário customizável ativo por vez
+- **RN-FC02**: Tipos de campo disponíveis: texto curto, texto longo, número, data, seleção única, múltipla escolha
+- **RN-FC03**: Campos podem ser configurados como obrigatórios ou opcionais
+- **RN-FC04**: A ordem dos campos pode ser ajustada via drag-and-drop
+- **RN-FC05**: Formulário desativado não é exibido no fluxo de criação de demandas
 
 ---
 
@@ -2281,6 +2504,23 @@ Grupo Econômico
 - **Atualização de Timeline**: % de projetos com marcos registrados nos últimos 15 dias (Meta: > 90%)
 - **Precisão de Horas**: Desvio entre horas registradas e estimadas (Meta: < 20%)
 - **Cobertura de Score**: % de membros de squad com score de participação calculado (Meta: 100%)
+
+### Métricas de Sprints
+- **Velocidade de Sprint**: Pontos/horas entregues por sprint (Baseline a definir)
+- **Taxa de Conclusão de Sprint**: % de tarefas concluídas dentro do planejado (Meta: > 80%)
+- **Uso de Sprints**: % de projetos em execução com sprints criadas (Meta: > 90%)
+- **Previsibilidade**: Variação entre velocidade planejada e realizada (Meta: < 20%)
+
+### Métricas de Registro de Horas
+- **Taxa de Lançamento de Horas**: % de horas estimadas que possuem registro (Meta: > 85%)
+- **Tempo Médio de Aprovação**: Dias entre criação e aprovação do registro (Meta: < 2 dias)
+- **Taxa de Rejeição**: % de registros rejeitados (Baseline a definir)
+- **Atraso de Lançamento**: % de apontamentos feitos com > 3 dias de atraso (Meta: < 10%)
+
+### Métricas de Notificações
+- **Taxa de Leitura**: % de notificações lidas dentro de 24h (Meta: > 80%)
+- **Engajamento com Notificações**: % de notificações que resultam em ação no sistema (Baseline a definir)
+- **Volume de Notificações**: Quantidade média de notificações por usuário por semana (Baseline a definir)
 
 ### Métricas de Multi-Tenant
 - **Alternância de Contexto**: Frequência média de troca de contexto por usuário/dia (Baseline a definir)
@@ -2523,14 +2763,69 @@ Após aprovação, criar documentos complementares:
 
 **Fim do Documento**
 
-**Versão**: 2.3  
-**Data**: Janeiro 2026  
+**Versão**: 2.4  
+**Data**: Abril 2026  
 **Autor**: Denner Robert e Eduardo de Moura  
 **Status**: Aguardando Validação
 
 ---
 
 ### Changelog
+
+#### Versão 2.4 (Abril 2026)
+- **RF16 - Gestão de Sprints**: Implementado módulo completo de sprints para projetos:
+  - Criação e gerenciamento de sprints com nome, objetivo, número sequencial e datas
+  - Ciclo de vida da sprint: Planejamento → Ativa → Concluída (ou Cancelada)
+  - Regra: apenas uma sprint ativa por projeto por vez
+  - Ao concluir sprint, tarefas não concluídas retornam ao backlog (sem sprint)
+  - Ao cancelar sprint, todas as tarefas da sprint ficam sem sprint associada
+  - Duração padrão: 14 dias (configurável)
+  - Componentes: `SprintSelector`, `SprintHeader`, `SprintModal`
+  - Progresso da sprint: total de tarefas, concluídas e percentual
+  - Projetos em execução iniciam automaticamente com sprints de mock (1 concluída, 1 ativa, 1 em planejamento)
+- **RF17 - Registro de Horas por Tarefa**: Implementado apontamento de horas vinculado a tarefas:
+  - Colaborador registra horas com data, quantidade e descrição
+  - Fluxo de aprovação: Pendente → Aprovado ou Rejeitado
+  - Aprovação atualiza horas realizadas na tarefa automaticamente
+  - Rejeição exige motivo
+  - Registros aprovados não podem ser removidos
+  - Visualização de horas pendentes por projeto e por colaborador
+- **RF18 - Comentários em Tarefas**: Implementado sistema de comentários:
+  - Comentários vinculados individualmente a tarefas
+  - Campos: autor (usuário), conteúdo, data de criação e atualização
+  - Notificação gerada ao adicionar comentário em tarefa com outros colaboradores
+- **RF19 - Central de Notificações In-App**: Implementado sistema completo de notificações:
+  - Notificações categorizadas: demanda, projeto, tarefa
+  - Tipos de evento cobertos: demanda aprovada, demanda rejeitada, demanda em análise, demanda criada, demanda com ajustes, tarefa atribuída, comentário adicionado, marco se aproximando, sprint iniciada, alocação criada, projeto atualizado
+  - Ações disponíveis: marcar como lida, marcar todas como lidas, remover notificação, remover todas
+  - Filtros: todas, não lidas, por categoria (demanda, projeto, tarefa)
+  - Contador de não lidas no menu lateral
+  - Persistência via localStorage (persiste ao recarregar)
+  - Cada notificação possui link direto para a entidade relacionada
+- **RF13 - Integração Sprint no Kanban de Tarefas**:
+  - Tarefas podem ser vinculadas a uma sprint
+  - Seletor de sprint disponível na criação/edição de tarefa
+  - Header da sprint exibido sobre o kanban com progresso e ações
+  - Vinculação automática de tarefas às sprints baseada no status (em progresso/revisão → sprint ativa; concluídas → última sprint concluída)
+- **RF13 - Tela de Detalhes da Tarefa (TarefaDetailModal)**:
+  - Modal completo ao clicar em uma tarefa no Kanban
+  - Exibe informações completas: título, descrição, responsável, sprint, prioridade, estimativa, data limite, tags
+  - Aba de Comentários: listagem e adição de comentários
+  - Aba de Registro de Horas: listagem e lançamento de horas por tarefa
+- **RF09 - Formulário Customizável por Empresa**:
+  - Cada empresa pode ter um formulário personalizado para captura de informações adicionais em demandas
+  - Tipos de campo: texto curto, texto longo, número, data, seleção única, múltipla escolha
+  - Campos configuráveis: label, tipo, obrigatoriedade, placeholder, descrição, opções (para seleção)
+  - Editor de formulário com drag-and-drop para reordenar campos
+  - Ativação/desativação do formulário por empresa
+- **RF13 - Kanban Configurável por Empresa** (demandas):
+  - Administradores podem configurar quais etapas aparecem e em qual ordem no Kanban de demandas
+  - Cada empresa tem sua própria configuração de visibilidade das etapas
+  - Etapas podem ser ocultadas sem afetar o fluxo real de transições
+- **Glossário**: Adicionados termos: Sprint, Sprint Ativa, Registro de Horas, Aprovação de Horas, Comentário de Tarefa, Notificação In-App, Categoria de Notificação, Kanban Configurável, Formulário Customizável, Campo de Formulário
+- **Regras de Negócio**: Adicionadas seções RN-SP (Sprints), RN-RH (Registro de Horas), RN-NT (Notificações)
+- **Métricas**: Adicionadas métricas de Sprints, Registro de Horas e Notificações
+- **Matriz de Dependências**: Atualizada com RF16, RF17, RF18 e RF19
 
 #### Versão 2.3 (Janeiro 2026)
 - **Autenticação e Autorização**: Implementado sistema de autenticação mockado:

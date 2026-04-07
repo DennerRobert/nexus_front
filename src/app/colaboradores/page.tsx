@@ -47,11 +47,24 @@ const ColaboradoresPage = () => {
         ),
       },
       {
-        accessorKey: "empresaId",
-        header: "Empresa",
+        accessorKey: "empresaIds",
+        header: "Empresas",
         cell: ({ row }) => {
-          const empresa = getEmpresa(row.original.empresaId);
-          return empresa?.nome || "-";
+          const ids = row.original.empresaIds || [];
+          if (ids.length === 0) return <span className="text-slate-500">-</span>;
+          return (
+            <div className="flex flex-col gap-0.5">
+              {ids.slice(0, 2).map((eid) => {
+                const empresa = getEmpresa(eid);
+                return empresa ? (
+                  <span key={eid} className="text-sm text-slate-200">{empresa.nome}</span>
+                ) : null;
+              })}
+              {ids.length > 2 && (
+                <span className="text-xs text-slate-500">+{ids.length - 2} mais</span>
+              )}
+            </div>
+          );
         },
       },
       {

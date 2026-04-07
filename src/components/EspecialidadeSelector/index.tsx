@@ -15,8 +15,9 @@ import {
   SENIORIDADE_LABELS,
   TECNOLOGIA_LABELS,
   TECNOLOGIAS_POR_AREA,
+  FRAMEWORKS_POR_AREA,
 } from "@/interfaces/colaborador.interface";
-import { Plus, Trash2, X } from "lucide-react";
+import { Plus, Trash2, X, Star } from "lucide-react";
 import { cn } from "@/utils/cn";
 
 interface EspecialidadeSelectorProps {
@@ -25,12 +26,13 @@ interface EspecialidadeSelectorProps {
   error?: string;
 }
 
-const emptyEspecialidade: EspecialidadeColaborador = {
+const buildEmptyEspecialidade = (): EspecialidadeColaborador => ({
   area: "frontend",
   senioridade: "pleno",
+  frameworkPrincipal: "react",
   tecnologias: [],
   tecnologiasCustom: [],
-};
+});
 
 export const EspecialidadeSelector = ({
   value,
@@ -40,28 +42,29 @@ export const EspecialidadeSelector = ({
   const [customTechInput, setCustomTechInput] = useState<Record<number, string>>({});
 
   const handleAddEspecialidade = () => {
-    onChange([...value, { ...emptyEspecialidade }]);
+    onChange([...value, buildEmptyEspecialidade()]);
   };
 
   const handleRemoveEspecialidade = (index: number) => {
-    const newValue = value.filter((_, i) => i !== index);
-    onChange(newValue);
+    onChange(value.filter((_, i) => i !== index));
   };
 
-  const handleUpdateEspecialidade = (
+  const handleUpdateField = (
     index: number,
     field: keyof EspecialidadeColaborador,
     fieldValue: unknown
   ) => {
     const newValue = [...value];
     newValue[index] = { ...newValue[index], [field]: fieldValue };
-    
-    // Se mudou a área, limpar as tecnologias
+
     if (field === "area") {
+      const newArea = fieldValue as AreaEspecialidade;
+      const firstFramework = FRAMEWORKS_POR_AREA[newArea]?.[0] ?? "react";
+      newValue[index].frameworkPrincipal = firstFramework;
       newValue[index].tecnologias = [];
       newValue[index].tecnologiasCustom = [];
     }
-    
+
     onChange(newValue);
   };
 
@@ -71,27 +74,27 @@ export const EspecialidadeSelector = ({
     const newTechs = techs.includes(tech)
       ? techs.filter((t) => t !== tech)
       : [...techs, tech];
-    handleUpdateEspecialidade(index, "tecnologias", newTechs);
+    handleUpdateField(index, "tecnologias", newTechs);
   };
 
   const handleAddCustomTech = (index: number) => {
     const techName = customTechInput[index]?.trim();
     if (!techName) return;
-    
+
     const especialidade = value[index];
     const currentCustom = especialidade.tecnologiasCustom || [];
-    
+
     if (!currentCustom.includes(techName)) {
-      handleUpdateEspecialidade(index, "tecnologiasCustom", [...currentCustom, techName]);
+      handleUpdateField(index, "tecnologiasCustom", [...currentCustom, techName]);
     }
-    
+
     setCustomTechInput({ ...customTechInput, [index]: "" });
   };
 
   const handleRemoveCustomTech = (index: number, tech: string) => {
     const especialidade = value[index];
     const newCustom = (especialidade.tecnologiasCustom || []).filter((t) => t !== tech);
-    handleUpdateEspecialidade(index, "tecnologiasCustom", newCustom);
+    handleUpdateField(index, "tecnologiasCustom", newCustom);
   };
 
   const handleKeyDownCustomTech = (index: number, e: React.KeyboardEvent) => {
@@ -104,8 +107,9 @@ export const EspecialidadeSelector = ({
   return (
     <div className="space-y-4">
       {value.map((especialidade, index) => {
+        const frameworks = FRAMEWORKS_POR_AREA[especialidade.area] || [];
         const tecnologiasDisponiveis = TECNOLOGIAS_POR_AREA[especialidade.area] || [];
-        
+
         return (
           <Card key={index} className="relative">
             <CardContent className="pt-6">
@@ -120,12 +124,13 @@ export const EspecialidadeSelector = ({
                 <Trash2 className="h-4 w-4" />
               </Button>
 
+              {/* Área e Senioridade */}
               <div className="grid gap-4 md:grid-cols-2 mb-4">
                 <Select
                   label="Área de Especialidade"
                   value={especialidade.area}
                   onChange={(e) =>
-                    handleUpdateEspecialidade(index, "area", e.target.value as AreaEspecialidade)
+                    handleUpdateField(index, "area", e.target.value as AreaEspecialidade)
                   }
                   options={Object.entries(AREA_ESPECIALIDADE_LABELS).map(([val, label]) => ({
                     value: val,
@@ -136,7 +141,7 @@ export const EspecialidadeSelector = ({
                   label="Senioridade"
                   value={especialidade.senioridade}
                   onChange={(e) =>
-                    handleUpdateEspecialidade(index, "senioridade", e.target.value as Senioridade)
+                    handleUpdateField(index, "senioridade", e.target.value as Senioridade)
                   }
                   options={Object.entries(SENIORIDADE_LABELS).map(([val, label]) => ({
                     value: val,
@@ -145,26 +150,67 @@ export const EspecialidadeSelector = ({
                 />
               </div>
 
+              {/* Framework Principal */}
+              <div className="mb-4">
+                <label className="mb-2 flex items-center gap-1.5 text-sm font-medium text-slate-300">
+                  <Star className="h-3.5 w-3.5 text-amber-400" />
+                  Framework Principal
+                  <span className="text-xs text-slate-500">(apenas 1)</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {frameworks.map((framework) => {
+                    const isSelected = especialidade.frameworkPrincipal === framework;
+                    return (
+                      <button
+                        key={framework}
+                        type="button"
+                        onClick={() => handleUpdateField(index, "frameworkPrincipal", framework)}
+                        className={cn(
+                          "rounded-full border px-3 py-1 text-xs font-medium transition-all",
+                          isSelected
+                            ? "border-amber-500 bg-amber-500/20 text-amber-300 shadow-sm"
+                            : "border-slate-600 text-slate-400 hover:border-slate-500"
+                        )}
+                        aria-pressed={isSelected}
+                      >
+                        {TECNOLOGIA_LABELS[framework]}
+                      </button>
+                    );
+                  })}
+                </div>
+                {!especialidade.frameworkPrincipal && (
+                  <p className="mt-1 text-xs text-yellow-400">
+                    Selecione o framework principal
+                  </p>
+                )}
+              </div>
+
+              {/* Tecnologias em Geral */}
               <div className="space-y-3">
                 <label className="text-sm font-medium text-slate-300">
-                  Tecnologias
+                  Tecnologias em Geral
+                  <span className="ml-1.5 text-xs text-slate-500">(pode ter várias)</span>
                 </label>
-                
-                {/* Tecnologias pré-definidas */}
+
                 <div className="flex flex-wrap gap-2">
                   {tecnologiasDisponiveis.map((tech) => {
                     const isSelected = especialidade.tecnologias.includes(tech);
+                    const isPrincipal = especialidade.frameworkPrincipal === tech;
                     return (
                       <button
                         key={tech}
                         type="button"
                         onClick={() => handleToggleTecnologia(index, tech)}
+                        disabled={isPrincipal}
                         className={cn(
                           "rounded-full border px-3 py-1 text-xs font-medium transition-all",
-                          isSelected
+                          isPrincipal
+                            ? "border-amber-500/30 bg-amber-500/10 text-amber-400/50 cursor-not-allowed"
+                            : isSelected
                             ? "border-cyan-500 bg-cyan-500/20 text-cyan-400"
                             : "border-slate-600 text-slate-400 hover:border-slate-500"
                         )}
+                        title={isPrincipal ? "Já selecionado como framework principal" : undefined}
                       >
                         {TECNOLOGIA_LABELS[tech]}
                       </button>
@@ -199,7 +245,7 @@ export const EspecialidadeSelector = ({
                 <div className="flex gap-2 items-end">
                   <div className="flex-1">
                     <Input
-                      placeholder="Adicionar tecnologia..."
+                      placeholder="Adicionar outro framework, serviço ou biblioteca..."
                       value={customTechInput[index] || ""}
                       onChange={(e) =>
                         setCustomTechInput({ ...customTechInput, [index]: e.target.value })
@@ -216,12 +262,6 @@ export const EspecialidadeSelector = ({
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
-
-                {especialidade.tecnologias.length === 0 && (
-                  <p className="text-xs text-yellow-400">
-                    Selecione pelo menos uma tecnologia
-                  </p>
-                )}
               </div>
             </CardContent>
           </Card>

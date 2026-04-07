@@ -1,5 +1,6 @@
 export * from "./empresa.store";
 export * from "./colaborador.store";
+export * from "./setor.store";
 export * from "./cliente.store";
 export * from "./demanda.store";
 export * from "./projeto.store";

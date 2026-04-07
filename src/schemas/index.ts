@@ -1,5 +1,6 @@
 export * from "./empresa.schema";
 export * from "./colaborador.schema";
+export * from "./setor.schema";
 export * from "./cliente.schema";
 export * from "./demanda.schema";
 export * from "./projeto.schema";
