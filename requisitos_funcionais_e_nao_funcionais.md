@@ -595,8 +595,10 @@ Grupo Econômico
        - Dados: SQL, Python, Spark, Airflow, Power BI, Tableau, etc.
        - I.A: Python, TensorFlow, PyTorch, LangChain, OpenAI, etc.
      * **Tecnologias customizadas**: Possibilidade de adicionar tecnologias não listadas
-   - Custo/hora (visível apenas para RH/Financeiro/Diretoria)
+   - Custo/hora (visibilidade controlada por perfil — ver RN03.2)
    - Carga horária contratual (ex: 160h/mês)
+
+> **Débito técnico — custo/hora por empresa (v1):** Na implementação atual do frontend, `custoHora` e `cargaHorariaMensal` são campos únicos no cadastro do colaborador (não vinculados a uma empresa específica). O modelo de dados definitivo prevê a tabela `vinculos_empregaticio`, que armazena esses valores **por empresa**, permitindo que um mesmo colaborador tenha custos distintos em cada empresa do grupo para fins de rateio intercompany. A migração desse campo para o modelo por-empresa ocorrerá na integração com o backend.
 
 2. Registrar alocações:
    - Projeto/Produto
@@ -611,7 +613,10 @@ Grupo Econômico
 
 **Regras de Negócio**:
 - RN03.1: A soma de alocações de um colaborador NÃO PODE exceder 100%
-- RN03.2: Custo/hora individual só é visível para perfis: RH, Financeiro, Diretoria
+- RN03.2: Custo/hora individual é visível conforme o perfil do usuário autenticado:
+  - **Acesso total** (`administrador`, `financeiro`, `rh`): vê custo/hora de qualquer colaborador
+  - **Acesso restrito ao setor** (`gestor_inovacao`, `analista_inovacao`): vê custo/hora apenas dos colaboradores pertencentes ao próprio setor
+  - **Sem acesso** (demais perfis): o campo custo/hora é completamente oculto na interface
 - RN03.3: Para cálculo de rateio intercompany, usa-se o custo/hora da empresa de origem do colaborador
 
 ---
@@ -1001,6 +1006,8 @@ Grupo Econômico
 **Descrição**: Cadastro e manutenção de setores organizacionais que agrupam e classificam colaboradores, permitindo filtragem por área de atuação e geração de relatórios por setor.
 
 **Referências**: Integra com RF03 (colaboradores utilizam setores), RF09 (parametrização pode considerar setores)
+
+> **Decisão de implementação (v1):** O CRUD de setores está embutido no módulo de Colaboradores — não existe uma rota ou tela dedicada `/setores`. O cadastro de novos setores ocorre inline no formulário de colaboradores (campo multi-select com criação ad-hoc). Uma tela dedicada de gestão de setores poderá ser extraída em versões futuras conforme a necessidade operacional.
 
 **Funcionalidades**:
 
@@ -1745,12 +1752,17 @@ Grupo Econômico
 **Descrição**: Proteção de dados sensíveis e controle de acesso baseado em perfis.
 
 **Requisitos**:
-1. **Perfis de Acesso**:
-   - **Colaborador**: Visualiza apenas seus projetos, tarefas e cronogramas
-   - **Gestor de Projeto**: Visualiza custos e equipe dos projetos que gerencia
-   - **Gestor de Empresa**: Visualiza todos os projetos da sua empresa
-   - **RH/Financeiro**: Visualiza custos individuais de colaboradores
-   - **Diretoria**: Acesso total a todos os dados do grupo
+1. **Perfis de Acesso** *(nomenclatura implementada no sistema)*:
+   - **`administrador`**: Acesso total a todos os módulos e dados, incluindo custo/hora de todos os colaboradores
+   - **`financeiro`**: Acesso total ao módulo de Colaboradores; visualiza custo/hora de todos os colaboradores; leitura em Empresas e Clientes
+   - **`rh`**: Acesso total ao módulo de Colaboradores; visualiza custo/hora de todos os colaboradores; leitura em Empresas
+   - **`gestor_inovacao`**: Acesso completo a Demandas e Clientes; leitura em Projetos (abas detalhes/acompanhamento); visualiza custo/hora apenas dos colaboradores do próprio setor
+   - **`analista_inovacao`**: Idêntico ao `gestor_inovacao`; visualiza custo/hora apenas dos colaboradores do próprio setor
+   - **`assistente_inovacao`**: Acesso a Demandas e visualização de Clientes; sem acesso a custo/hora
+   - **`product_owner`**: Demandas (vitrine/submissão) e Projetos dos próprios squads; sem acesso a custo/hora
+   - **`especialista`**: Idêntico ao `product_owner`; sem acesso a custo/hora
+   - **`cliente`**: Apenas visualização e submissão de demandas via vitrine; sem acesso a custo/hora
+   - **`comercial`**: Demandas (vitrine/submissão) e acesso total a Clientes; sem acesso a custo/hora
 
 2. **LGPD/Privacidade**:
    - Dados salariais (custo/hora) criptografados em repouso

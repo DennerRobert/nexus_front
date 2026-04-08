@@ -20,6 +20,7 @@
 | 6 | Nova tabela `log_projetos` (auditoria) | Django | Rastreabilidade de eventos que afetam projetos |
 | 7 | `empresas`: novos campos `email` e `telefone` | Frontend | Dados de contato necessários para auto-preenchimento no cadastro de clientes internos |
 | 8 | `clientes`: novo campo `empresa_id` (FK → `empresas`) | Frontend | Vincula clientes internos à empresa do grupo, permitindo auto-preenchimento do formulário de criação |
+| 9 | `usuarios.perfil`: adicionados valores `financeiro` e `rh` ao enum | Frontend | Novos perfis com acesso total ao módulo de Colaboradores e visibilidade do campo `custo_hora`; necessários para controle de acesso previsto em RNF01/RN03.2 |
 
 ---
 
@@ -132,7 +133,7 @@ O SGPI é uma plataforma **multi-tenant** para gestão do ciclo completo de inov
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | Data de criação |
 | `updated_at` | TIMESTAMPTZ | NOT NULL | Data de atualização |
 
-**Perfis:** `administrador`, `gestor_inovacao`, `analista_inovacao`, `assistente_inovacao`, `product_owner`, `especialista`, `cliente`, `comercial`
+**Perfis:** `administrador`, `financeiro`, `rh`, `gestor_inovacao`, `analista_inovacao`, `assistente_inovacao`, `product_owner`, `especialista`, `cliente`, `comercial`
 
 ---
 
@@ -1178,7 +1179,7 @@ kanban_empresa_config
 
 | Enum | Valores |
 |---|---|
-| `PerfilUsuario` | `administrador`, `gestor_inovacao`, `analista_inovacao`, `assistente_inovacao`, `product_owner`, `especialista`, `cliente`, `comercial` |
+| `PerfilUsuario` | `administrador`, `financeiro`, `rh`, `gestor_inovacao`, `analista_inovacao`, `assistente_inovacao`, `product_owner`, `especialista`, `cliente`, `comercial` |
 
 ### Colaboradores
 

@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const perfilUsuarioSchema = z.enum([
   "administrador",
+  "financeiro",
+  "rh",
   "gestor_inovacao",
   "analista_inovacao",
   "assistente_inovacao",

@@ -1,6 +1,8 @@
 // Perfis de usuário do sistema
 export type PerfilUsuario =
   | "administrador"
+  | "financeiro"
+  | "rh"
   | "gestor_inovacao"
   | "analista_inovacao"
   | "assistente_inovacao"
@@ -38,6 +40,8 @@ export interface AuthState {
 
 export const PERFIL_USUARIO_LABELS: Record<PerfilUsuario, string> = {
   administrador: "Administrador",
+  financeiro: "Financeiro",
+  rh: "Recursos Humanos",
   gestor_inovacao: "Gestor de Inovação",
   analista_inovacao: "Analista de Inovação",
   assistente_inovacao: "Assistente de Inovação",
@@ -49,6 +53,8 @@ export const PERFIL_USUARIO_LABELS: Record<PerfilUsuario, string> = {
 
 export const PERFIL_USUARIO_COLORS: Record<PerfilUsuario, string> = {
   administrador: "bg-purple-500",
+  financeiro: "bg-emerald-500",
+  rh: "bg-pink-500",
   gestor_inovacao: "bg-blue-500",
   analista_inovacao: "bg-cyan-500",
   assistente_inovacao: "bg-teal-500",
