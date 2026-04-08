@@ -1,5 +1,5 @@
 # Sistema de Gestão de Portfólio Integrado (SGPI)
-## Documento de Requisitos - Versão 2.4
+## Documento de Requisitos - Versão 2.5
 
 ---
 
@@ -354,6 +354,13 @@ flowchart TB
 | **Kanban Configurável** | Quadro Kanban cujas colunas e visibilidade podem ser personalizadas por empresa |
 | **Formulário Customizável** | Conjunto de campos dinâmicos de uma empresa para capturar informações específicas em demandas |
 | **Campo de Formulário** | Elemento individual de um formulário customizável (texto, número, data, seleção, etc.) |
+| **Setor** | Agrupamento organizacional global que classifica colaboradores por área de atuação (ex: TI, Financeiro, RH) |
+| **Saúde do Projeto** | Indicador calculado do status do projeto em relação ao cronograma: No Prazo, Atenção ou Crítico |
+| **Previsão de Conclusão** | Data estimada de término do projeto baseada na velocidade atual de entrega de tarefas |
+| **Tendência de Atraso** | Projeção de quantos dias o projeto pode atrasar com base no ritmo atual versus velocidade necessária |
+| **Tipo de Campo** | Formato de entrada de dados em um campo de formulário customizável (texto, número, data, seleção, múltipla escolha) |
+| **Etapa Visível** | Etapa do fluxo de demandas configurada para aparecer no Kanban da empresa |
+| **Score de Saúde** | Indicador numérico (No Prazo / Atenção / Crítico) que representa o estado geral do projeto com base em progresso e prazo |
 
 ---
 
@@ -979,6 +986,130 @@ Grupo Econômico
 - RN19.4: Notificações removidas não podem ser recuperadas
 - RN19.5: Ao marcar como lida, o status é atualizado imediatamente na interface
 - RN19.6: Filtro de categoria é mutuamente exclusivo com filtro de status "não lidas"
+
+---
+
+### RF20: Gestão de Setores
+
+**Descrição**: Cadastro e manutenção de setores organizacionais que agrupam e classificam colaboradores, permitindo filtragem por área de atuação e geração de relatórios por setor.
+
+**Referências**: Integra com RF03 (colaboradores utilizam setores), RF09 (parametrização pode considerar setores)
+
+**Funcionalidades**:
+
+1. **Cadastro de Setor**:
+   - Nome do setor (obrigatório)
+   - Descrição (opcional)
+   - Status (ativo/inativo)
+
+2. **Gestão de Setores**:
+   - Listar todos os setores com indicador de status
+   - Editar nome e descrição
+   - Ativar/desativar setor sem exclusão de histórico
+   - Busca por nome
+
+3. **Vínculo com Colaboradores**:
+   - Colaborador pode pertencer a múltiplos setores
+   - Listagem de colaboradores por setor
+   - Filtro de colaboradores disponíveis por setor (utilizado no Matchmaking)
+
+**Regras de Negócio**:
+- RN20.1: Setor é uma entidade global (não vinculada a uma empresa específica)
+- RN20.2: Colaborador pode pertencer a múltiplos setores simultaneamente
+- RN20.3: Setor desativado não aparece nas opções de seleção em novos cadastros
+- RN20.4: Setor com colaboradores vinculados pode ser desativado mas não excluído
+- RN20.5: Nome do setor deve ser único no sistema
+
+---
+
+### RF21: Formulário Customizável por Empresa
+
+**Descrição**: Permite que cada empresa configure um formulário personalizado com campos dinâmicos para capturar informações adicionais específicas durante o cadastro de demandas. O formulário é exibido como etapa complementar no fluxo de criação de demandas da empresa.
+
+**Referências**: Integra com RF01 (demandas), RF14 (contexto de empresa)
+
+**Funcionalidades**:
+
+1. **Configuração de Formulário**:
+   - Cada empresa pode ter um formulário customizável ativo por vez
+   - Título e descrição do formulário
+   - Ativação/desativação do formulário sem perda de configuração
+   - Acesso exclusivo para perfil Administrador
+
+2. **Tipos de Campo Suportados**:
+   - **Texto curto** (`texto`): Campo de entrada simples para textos breves
+   - **Texto longo** (`textarea`): Campo de texto expandido para descrições
+   - **Número** (`numero`): Campo numérico com validação de formato
+   - **Data** (`data`): Seletor de data
+   - **Seleção única** (`selecao`): Dropdown com opções predefinidas (escolha 1)
+   - **Múltipla escolha** (`multipla_escolha`): Checkbox com opções predefinidas (escolha N)
+
+3. **Configuração de Campos**:
+   - Label do campo (obrigatório)
+   - Tipo de campo (obrigatório)
+   - Obrigatoriedade (sim/não)
+   - Placeholder (opcional)
+   - Descrição de ajuda (opcional)
+   - Opções de resposta (para campos de seleção)
+   - Ordem de exibição (ajustável via drag-and-drop)
+
+4. **Integração com Demandas**:
+   - Formulário exibido durante criação de demanda se empresa tiver formulário ativo
+   - Respostas armazenadas vinculadas à demanda
+   - Campos obrigatórios bloqueiam envio até preenchimento
+
+5. **Gerenciamento de Campos**:
+   - Adicionar novos campos ao formulário
+   - Editar campos existentes
+   - Remover campos (sem afetar registros anteriores)
+   - Reordenar campos via drag-and-drop
+
+**Regras de Negócio**:
+- RN21.1: Cada empresa pode ter no máximo um formulário ativo por vez
+- RN21.2: Formulário desativado não é exibido no fluxo de criação de demandas
+- RN21.3: Campos de seleção e múltipla escolha DEVEM ter ao menos uma opção cadastrada
+- RN21.4: A ordem dos campos pode ser ajustada a qualquer momento
+- RN21.5: Remoção de campo de formulário ativo não apaga respostas já registradas
+- RN21.6: Apenas Administrador pode criar, editar ou remover formulários e campos
+
+---
+
+### RF22: Kanban Configurável por Empresa (Demandas)
+
+**Descrição**: Permite que administradores de cada empresa personalizem a visualização do Kanban de demandas, configurando quais etapas do fluxo são exibidas, seus títulos customizados e a ordem de exibição. A configuração é por empresa e afeta apenas a visualização, sem interferir nas transições reais do fluxo.
+
+**Referências**: Integra com RF01 (fluxo de demandas e etapas), RF14 (contexto de empresa)
+
+**Funcionalidades**:
+
+1. **Configuração de Etapas Visíveis**:
+   - Exibir ou ocultar cada uma das 10 etapas do fluxo de demandas no Kanban
+   - Etapas ocultadas continuam existindo no fluxo real (não bloqueiam transições)
+   - Configuração salva por empresa (isolada de outras empresas do tenant)
+
+2. **Personalização de Títulos**:
+   - Cada empresa pode definir um título customizado para cada etapa
+   - Título original mantido como padrão se não personalizado
+
+3. **Reordenação de Etapas**:
+   - Ordem de exibição das colunas no Kanban é configurável
+   - Arrastar e soltar para reorganizar etapas
+   - Ordem lógica do fluxo de transições é mantida independente da ordem visual
+
+4. **Aplicação em Tempo Real**:
+   - Alterações na configuração são refletidas imediatamente no Kanban
+   - Demandas em etapas ocultas desaparecem do Kanban mas seguem no sistema
+
+5. **Restauração de Padrões**:
+   - Possibilidade de restaurar configuração padrão (todas as etapas visíveis)
+
+**Regras de Negócio**:
+- RN22.1: Configuração do Kanban é por empresa; cada empresa possui sua própria configuração
+- RN22.2: Ocultar etapa no Kanban NÃO bloqueia transições para essa etapa (fluxo real intacto)
+- RN22.3: Ao menos 1 etapa deve permanecer visível no Kanban
+- RN22.4: Apenas Administrador pode alterar configurações do Kanban de demandas
+- RN22.5: Configuração é persistida por empresa e carregada automaticamente ao abrir o Kanban
+- RN22.6: Demandas em etapas ocultas continuam acessíveis via visualização em tabela
 
 ---
 
@@ -2179,6 +2310,9 @@ Grupo Econômico
 | RF17 | RF16, RF03 | Registro de horas depende de sprints/tarefas e colaboradores |
 | RF18 | RF13 | Comentários dependem de tarefas do projeto |
 | RF19 | RF01, RF13, RF16 | Notificações são geradas por eventos de projetos, demandas e tarefas |
+| RF20 | RF03 | Setores são utilizados na classificação e filtragem de colaboradores |
+| RF21 | RF01, RF14 | Formulários customizáveis são exibidos durante a criação de demandas por empresa |
+| RF22 | RF01, RF14 | Kanban de demandas utiliza configurações de visibilidade de etapas por empresa |
 
 ---
 
@@ -2454,6 +2588,26 @@ Grupo Econômico
 - **RN-FC03**: Campos podem ser configurados como obrigatórios ou opcionais
 - **RN-FC04**: A ordem dos campos pode ser ajustada via drag-and-drop
 - **RN-FC05**: Formulário desativado não é exibido no fluxo de criação de demandas
+- **RN-FC06**: Campos de seleção DEVEM ter ao menos uma opção cadastrada para serem válidos
+- **RN-FC07**: Remoção de campo não apaga respostas anteriores já registradas em demandas
+- **RN-FC08**: Apenas o perfil Administrador pode criar, editar ou remover formulários e campos
+
+### RN de Kanban Configurável de Demandas (RN-KC)
+- **RN-KC01**: Configuração do Kanban é por empresa; cada empresa possui sua própria configuração independente
+- **RN-KC02**: Ocultar etapa no Kanban NÃO bloqueia transições para essa etapa (fluxo real permanece intacto)
+- **RN-KC03**: Ao menos 1 etapa deve permanecer visível no Kanban em qualquer configuração
+- **RN-KC04**: Apenas Administrador pode alterar configurações do Kanban de demandas
+- **RN-KC05**: Configuração é persistida por empresa e carregada automaticamente ao abrir o Kanban
+- **RN-KC06**: Demandas em etapas ocultas continuam acessíveis via visualização em tabela
+- **RN-KC07**: Título personalizado por etapa é opcional; etapa sem título usa nome padrão do sistema
+
+### RN de Setores (RN-SET)
+- **RN-SET01**: Setor é uma entidade global, não vinculada a uma empresa específica
+- **RN-SET02**: Colaborador pode pertencer a múltiplos setores simultaneamente
+- **RN-SET03**: Setor desativado não aparece nas opções de seleção em novos cadastros de colaboradores
+- **RN-SET04**: Setor com colaboradores vinculados pode ser desativado, mas não excluído
+- **RN-SET05**: Nome do setor deve ser único no sistema (sem duplicatas)
+- **RN-SET06**: Vínculo de colaborador com setor não é afetado pela desativação do setor (histórico preservado)
 
 ---
 
@@ -2556,6 +2710,22 @@ Grupo Econômico
 - **Taxa de Devolução**: % de demandas que passam pela etapa "Devolução Proponente" (Baseline a definir)
 - **Uso do Kanban**: % de usuários que utilizam visualização Kanban vs Tabela (Baseline a definir)
 
+### Métricas de Setores (RF20)
+- **Setores Ativos**: Quantidade de setores ativos no sistema (Baseline a definir)
+- **Cobertura de Setores**: % de colaboradores com ao menos um setor associado (Meta: > 90%)
+- **Setores por Colaborador**: Média de setores por colaborador (Baseline a definir)
+
+### Métricas de Formulário Customizável (RF21)
+- **Taxa de Uso**: % de empresas com formulário customizável ativo (Baseline a definir)
+- **Completude de Preenchimento**: % de campos obrigatórios do formulário preenchidos em demandas (Meta: 100%)
+- **Campos por Formulário**: Média de campos configurados por formulário (Baseline a definir)
+- **Taxa de Formulários Ativos**: % de formulários criados que estão ativos (Baseline a definir)
+
+### Métricas de Kanban Configurável (RF22)
+- **Taxa de Personalização**: % de empresas que personalizaram o Kanban de demandas (Baseline a definir)
+- **Etapas Ocultadas**: Média de etapas ocultas por empresa (Baseline a definir)
+- **Uso de Kanban vs Tabela**: % de acessos ao módulo de demandas via Kanban versus tabela (Baseline a definir)
+
 ### Métricas de Qualidade
 - **Disponibilidade**: Uptime do sistema (Meta: 99%)
 - **Performance**: Tempo de resposta médio (Meta: < 500ms)
@@ -2573,7 +2743,7 @@ Grupo Econômico
 ### 13.2 Documentação Técnica
 Após aprovação, criar documentos complementares:
 - **Arquitetura de Software**: Diagrama de componentes, tecnologias, integrações
-- **Modelo de Dados**: Diagrama ER completo com entidades e relacionamentos
+- **Modelo de Dados**: ✅ Disponível em [`modelagem_banco_dados.md`](./modelagem_banco_dados.md) — Modelagem completa com 55+ tabelas, colunas, tipos, restrições e diagrama ERD textual cobrindo todos os 10 domínios do sistema
 - **Guia de Implementação de IA**: Arquitetura de agentes, RAG, prompts
 - **Plano de Testes**: Casos de teste, critérios de aceitação
 - **Plano de Migração**: Como migrar dados de sistemas legados (se houver)
@@ -2763,7 +2933,7 @@ Após aprovação, criar documentos complementares:
 
 **Fim do Documento**
 
-**Versão**: 2.4  
+**Versão**: 2.5  
 **Data**: Abril 2026  
 **Autor**: Denner Robert e Eduardo de Moura  
 **Status**: Aguardando Validação
@@ -2771,6 +2941,40 @@ Após aprovação, criar documentos complementares:
 ---
 
 ### Changelog
+
+#### Versão 2.5 (Abril 2026)
+- **RF20 - Gestão de Setores**: Novo requisito para CRUD de setores organizacionais:
+  - Cadastro de setores com nome, descrição e status ativo/inativo
+  - Colaborador pode pertencer a múltiplos setores simultaneamente
+  - Setor desativado preserva histórico de vínculos existentes
+  - Setor com colaboradores vinculados pode ser desativado mas não excluído
+  - Nome de setor deve ser único no sistema
+- **RF21 - Formulário Customizável por Empresa**: Elevado de menção no changelog para RF dedicado:
+  - Tipos de campo: texto curto, texto longo, número, data, seleção única, múltipla escolha
+  - Configuração por campo: label, tipo, obrigatoriedade, placeholder, descrição, opções
+  - Drag-and-drop para reordenação dos campos
+  - Ativação/desativação do formulário sem perda de configuração
+  - Campos de seleção exigem ao menos uma opção; remoção de campo preserva respostas anteriores
+  - Exclusivo para perfil Administrador
+- **RF22 - Kanban Configurável por Empresa (Demandas)**: Elevado de menção no changelog para RF dedicado:
+  - Configuração de visibilidade das 10 etapas do fluxo de demandas por empresa
+  - Títulos customizados por etapa (opcional)
+  - Reordenação de colunas via drag-and-drop
+  - Etapas ocultas não afetam transições reais do fluxo
+  - Ao menos 1 etapa deve permanecer visível; demandas ocultas acessíveis via tabela
+- **Modelagem do Banco de Dados**: Documento `modelagem_banco_dados.md` criado com:
+  - 55+ tabelas modeladas em 10 domínios
+  - Colunas, tipos de dado, restrições (PK, FK, NOT NULL, CHECK) e valores padrão
+  - Diagrama ERD textual com todos os relacionamentos
+  - Enums centralizados por domínio
+- **Glossário**: Adicionados termos: Setor, Saúde do Projeto, Previsão de Conclusão, Tendência de Atraso, Tipo de Campo, Etapa Visível, Score de Saúde
+- **Regras de Negócio**: Adicionadas/expandidas seções:
+  - RN-SET (Setores): 6 regras sobre gestão e vínculo de setores
+  - RN-FC (Formulário Customizável): Expandida com RN-FC06, RN-FC07, RN-FC08
+  - RN-KC (Kanban Configurável): Nova seção com 7 regras
+- **Métricas**: Adicionadas seções de métricas para RF20 (Setores), RF21 (Formulários) e RF22 (Kanban)
+- **Matriz de Dependências**: Atualizada com RF20, RF21 e RF22
+- **Seção 13.2**: Referência ao `modelagem_banco_dados.md` como Modelo de Dados concluído
 
 #### Versão 2.4 (Abril 2026)
 - **RF16 - Gestão de Sprints**: Implementado módulo completo de sprints para projetos:
