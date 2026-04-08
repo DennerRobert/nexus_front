@@ -13,6 +13,10 @@ export const empresaSchema = z.object({
       "CNPJ inválido (formato: XX.XXX.XXX/XXXX-XX)"
     ),
 
+  email: z.string().email("E-mail inválido").optional().or(z.literal("")),
+
+  telefone: z.string().max(20, "Telefone inválido").optional().or(z.literal("")),
+
   descricao: z
     .string()
     .max(500, "A descrição deve ter no máximo 500 caracteres")

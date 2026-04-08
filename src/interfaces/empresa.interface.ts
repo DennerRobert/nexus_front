@@ -16,6 +16,8 @@ export interface Empresa {
   id: string;
   nome: string;
   cnpj: string;
+  email?: string;
+  telefone?: string;
   descricao?: string;
   ativa: boolean;
   formularioTipo?: FormularioTipo;
@@ -28,6 +30,8 @@ export interface Empresa {
 export interface EmpresaFormData {
   nome: string;
   cnpj: string;
+  email?: string;
+  telefone?: string;
   descricao?: string;
   ativa: boolean;
   formularioTipo?: FormularioTipo;

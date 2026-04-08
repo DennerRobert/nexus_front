@@ -199,6 +199,8 @@ export const EmpresaFormModal = ({
   // ─── Estado dos campos estáticos ─────────────────────────────────────────
   const [nome, setNome] = useState("");
   const [cnpj, setCnpj] = useState("");
+  const [email, setEmail] = useState("");
+  const [telefone, setTelefone] = useState("");
   const [descricao, setDescricao] = useState("");
   const [setor, setSetor] = useState("");
   const [formularioTipo, setFormularioTipo] = useState<FormularioTipo | "">("");
@@ -220,6 +222,8 @@ export const EmpresaFormModal = ({
       if (empresa) {
         setNome(empresa.nome);
         setCnpj(empresa.cnpj);
+        setEmail(empresa.email ?? "");
+        setTelefone(empresa.telefone ?? "");
         setDescricao(empresa.descricao ?? "");
         setSetor(empresa.setor ?? "");
         setFormularioTipo(empresa.formularioTipo ?? "");
@@ -228,6 +232,8 @@ export const EmpresaFormModal = ({
       } else {
         setNome("");
         setCnpj("");
+        setEmail("");
+        setTelefone("");
         setDescricao("");
         setSetor("");
         setFormularioTipo("");
@@ -257,6 +263,14 @@ export const EmpresaFormModal = ({
       novosErros.cnpj = "CNPJ inválido (formato: XX.XXX.XXX/XXXX-XX).";
     }
 
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      novosErros.email = "E-mail inválido.";
+    }
+
+    if (telefone && telefone.length > 20) {
+      novosErros.telefone = "Telefone inválido.";
+    }
+
     // Validar campos obrigatórios do formulário customizado
     camposFormulario.forEach((campo) => {
       if (campo.obrigatorio && !dadosAdicionais[campo.id]?.trim()) {
@@ -274,6 +288,8 @@ export const EmpresaFormModal = ({
     onSalvar({
       nome: nome.trim(),
       cnpj: cnpj.trim(),
+      email: email.trim() || undefined,
+      telefone: telefone.trim() || undefined,
       descricao: descricao.trim() || undefined,
       setor: setor.trim() || undefined,
       formularioTipo: formularioTipo || undefined,
@@ -356,6 +372,56 @@ export const EmpresaFormModal = ({
             {errors.cnpj && (
               <p className="mt-1.5 text-sm text-red-400">{errors.cnpj}</p>
             )}
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-300">
+                E-mail
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errors.email) setErrors((p) => ({ ...p, email: undefined }));
+                }}
+                placeholder="contato@empresa.com.br"
+                className={cn(
+                  "w-full rounded-lg border bg-slate-900/50 px-4 py-2.5 text-sm text-slate-100",
+                  "placeholder-slate-500 outline-none transition-all",
+                  "focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30",
+                  errors.email ? "border-red-500/50" : "border-slate-700"
+                )}
+              />
+              {errors.email && (
+                <p className="mt-1.5 text-sm text-red-400">{errors.email}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-300">
+                Telefone
+              </label>
+              <input
+                type="text"
+                value={telefone}
+                onChange={(e) => {
+                  setTelefone(e.target.value);
+                  if (errors.telefone) setErrors((p) => ({ ...p, telefone: undefined }));
+                }}
+                placeholder="(11) 99999-9999"
+                className={cn(
+                  "w-full rounded-lg border bg-slate-900/50 px-4 py-2.5 text-sm text-slate-100",
+                  "placeholder-slate-500 outline-none transition-all",
+                  "focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30",
+                  errors.telefone ? "border-red-500/50" : "border-slate-700"
+                )}
+              />
+              {errors.telefone && (
+                <p className="mt-1.5 text-sm text-red-400">{errors.telefone}</p>
+              )}
+            </div>
           </div>
 
           <div>

@@ -14,6 +14,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { useClienteStore } from "@/stores/cliente.store";
+import { useEmpresaStore } from "@/stores/empresa.store";
 import { clienteSchema, type ClienteSchemaType } from "@/schemas/cliente.schema";
 import type { Cliente, OrigemCliente } from "@/interfaces/cliente.interface";
 import {
@@ -31,11 +32,15 @@ const origemVariantMap: Record<OrigemCliente, BadgeVariant> = {
 };
 
 const ClientesPage = () => {
-  const { getAll, create, update } = useClienteStore();
-  const clientes = getAll();
+  const { create, update } = useClienteStore();
+  const todosClientes = useClienteStore((s) => s.clientes);
+  const clientes = useMemo(() => todosClientes.filter((c) => c.ativo), [todosClientes]);
+  const todasEmpresas = useEmpresaStore((s) => s.empresas);
+  const empresas = useMemo(() => todasEmpresas.filter((e) => e.ativa), [todasEmpresas]);
 
   const [showModal, setShowModal] = useState(false);
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
+  const [isClienteInterno, setIsClienteInterno] = useState(false);
 
   const {
     register,
@@ -43,6 +48,7 @@ const ClientesPage = () => {
     formState: { errors, isSubmitting },
     reset,
     watch,
+    setValue,
   } = useForm<ClienteSchemaType>({
     resolver: zodResolver(clienteSchema),
     defaultValues: {
@@ -53,17 +59,43 @@ const ClientesPage = () => {
 
   const origem = watch("origem");
 
+  const handleClienteInternoToggle = (checked: boolean) => {
+    setIsClienteInterno(checked);
+    if (checked) {
+      setValue("origem", "interno");
+    } else {
+      setValue("origem", "externo");
+      setValue("empresaId", undefined);
+    }
+  };
+
+  const handleEmpresaInternaSelect = (empresaId: string) => {
+    const empresa = empresas.find((e) => e.id === empresaId);
+    if (!empresa) return;
+
+    setValue("empresaId", empresaId);
+    setValue("nome", empresa.nome);
+    setValue("cnpj", empresa.cnpj ?? "");
+    setValue("email", empresa.email ?? "");
+    setValue("telefone", empresa.telefone ?? "");
+    setValue("modeloReceita", "rateio_custo");
+  };
+
   const handleOpenCreate = () => {
     setEditingCliente(null);
+    setIsClienteInterno(false);
     reset({ nome: "", origem: "externo", ativo: true });
     setShowModal(true);
   };
 
   const handleOpenEdit = (cliente: Cliente) => {
     setEditingCliente(cliente);
+    const interno = cliente.origem === "interno" || cliente.origem === "investimento_interno";
+    setIsClienteInterno(interno);
     reset({
       nome: cliente.nome,
       origem: cliente.origem,
+      empresaId: cliente.empresaId,
       naturezaJuridica: cliente.naturezaJuridica,
       cnpj: cliente.cnpj || "",
       email: cliente.email || "",
@@ -203,6 +235,54 @@ const ClientesPage = () => {
         size="lg"
       >
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+
+          {/* ─── Checkbox: Cliente Interno ─────────────────────────────────── */}
+          {!editingCliente && (
+            <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-3">
+              <label
+                htmlFor="clienteInterno"
+                className="flex cursor-pointer items-center gap-2.5 text-sm text-slate-300 hover:text-slate-100"
+              >
+                <input
+                  type="checkbox"
+                  id="clienteInterno"
+                  checked={isClienteInterno}
+                  onChange={(e) => handleClienteInternoToggle(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500"
+                />
+                <span className="font-medium">Cliente interno</span>
+                <span className="text-slate-500">— vinculado a uma empresa do grupo</span>
+              </label>
+            </div>
+          )}
+
+          {/* ─── Select de empresa interna ─────────────────────────────────── */}
+          {isClienteInterno && !editingCliente && (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-300">
+                Empresa interna
+              </label>
+              <select
+                className="w-full rounded-lg border border-slate-700 bg-slate-900/50 px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 outline-none transition-all focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/30"
+                defaultValue=""
+                onChange={(e) => handleEmpresaInternaSelect(e.target.value)}
+                aria-label="Selecione a empresa interna"
+              >
+                <option value="" disabled className="bg-slate-800">
+                  Selecione uma empresa...
+                </option>
+                {empresas.map((empresa) => (
+                  <option key={empresa.id} value={empresa.id} className="bg-slate-800">
+                    {empresa.nome}
+                  </option>
+                ))}
+              </select>
+              {errors.empresaId && (
+                <p className="mt-1.5 text-sm text-red-400">{errors.empresaId.message}</p>
+              )}
+            </div>
+          )}
+
           <Input
             label="Nome do Cliente"
             placeholder="Ex: Varejo ABC"

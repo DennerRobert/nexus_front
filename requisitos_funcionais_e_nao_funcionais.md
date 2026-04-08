@@ -503,6 +503,12 @@ Grupo Econômico
    - **Intercompany**: Atende empresas do grupo
    - **Interno**: Uso exclusivo da empresa dona
 
+**Campos de dados relevantes na entidade Demanda**:
+- `squadSugeridoId`: referência ao squad proposto pelo pipeline de análise (RF08). Preenchido automaticamente após execução do pipeline; vincula a demanda ao squad sugerido antes da criação formal do projeto.
+- `exibirVitrine`: flag booleana que controla se a demanda aparece na vitrine de ideias (visível a todos os colaboradores).
+- `comiteId`: comitê responsável por avaliar a demanda (preenchido quando encaminhada para análise de comitê).
+- `historicoEtapas`: registro completo de todas as transições de etapa com data, usuário, observação e `justificativa` da mudança.
+
 **Regras de Negócio**:
 - RN01.1: Qualquer colaborador autenticado pode cadastrar uma demanda (não apenas gestores)
 - RN01.2: Demanda inicial NÃO exige empresa dona (será definida após análise do squad)
@@ -518,6 +524,7 @@ Grupo Econômico
   * Aprovação da comitiva que avaliou a entrega
 - RN01.11: Ao converter para produto, sistema solicita definição do "Dono de Operação" (responsável pela sustentação)
 - RN01.12: Demanda pode atender múltiplos clientes simultaneamente
+- RN01.13: Toda transição de etapa DEVE registrar no histórico: etapa anterior, etapa nova, usuário responsável, data/hora e justificativa (quando aplicável)
 
 ---
 
@@ -1057,6 +1064,7 @@ Grupo Econômico
    - Formulário exibido durante criação de demanda se empresa tiver formulário ativo
    - Respostas armazenadas vinculadas à demanda
    - Campos obrigatórios bloqueiam envio até preenchimento
+   - **Decisão de design**: As respostas são armazenadas diretamente no campo `dadosCustomizados` (JSONB) da própria entidade `Demanda`, usando o `id` do campo como chave e o valor digitado/selecionado como valor. Essa abordagem foi escolhida pois os campos variam por empresa e mudam ao longo do tempo, tornando uma tabela relacional desnecessariamente complexa para este caso.
 
 5. **Gerenciamento de Campos**:
    - Adicionar novos campos ao formulário
@@ -1507,7 +1515,18 @@ Grupo Econômico
      * Entregas parciais
      * Reuniões importantes
      * Decisões relevantes
-   - Cada marco possui: data, título, descrição, responsável e ícone
+   - Cada marco possui: data, título, descrição, responsável e ícone visual
+   - **Ícones disponíveis para marcos manuais**:
+     * `inbox` — Entrada de demanda
+     * `check_circle` — Aprovação / validação
+     * `play_circle` — Início de fase ou execução
+     * `users` — Kickoff / reunião de equipe
+     * `flag` — Marco de sprint ou entrega parcial
+     * `package` — Entrega de produto/artefato
+     * `star` — Destaque / conquista relevante
+     * `alert_triangle` — Alerta / risco identificado
+     * `message_circle` — Feedback / decisão registrada
+     * `calendar` — Evento geral
 
 0.3. **Horas por Integrante do Squad** (na aba Acompanhamento):
    - Lista de colaboradores alocados com:
@@ -1532,11 +1551,22 @@ Grupo Econômico
      * 🟡 **Atenção**: Possíveis desvios identificados
      * 🔴 **Crítico**: Atraso significativo ou risco de não entrega
    - Informações exibidas:
-     * Percentual de conclusão
-     * Dias restantes até o prazo
-     * Tendência de atraso (sim/não)
+     * Percentual de conclusão (0–100%)
+     * Dias restantes até o prazo e total de dias do projeto
+     * Tendência de atraso em dias (valor negativo = adiantado)
      * Previsão de conclusão baseada no ritmo atual
+     * **Velocidade atual**: tarefas concluídas por semana no ritmo atual
+     * **Velocidade necessária**: tarefas por semana necessárias para cumprir o prazo
    - Barra de progresso com indicação de meta vs atual
+
+0.5.1. **Score de Participação por Colaborador** (na aba Acompanhamento):
+   - Métrica individual calculada para cada membro do squad (0–100)
+   - Fatores considerados:
+     * Horas trabalhadas registradas e aprovadas
+     * Quantidade de tarefas concluídas
+     * Complexidade média das tarefas (escala 1–5)
+   - Ranking visual de contribuição da equipe
+   - Permite identificar membros subutilizados ou sobrecarregados
 
 0.6. **Kanban de Tarefas** (na aba Tarefas):
    - Quadro visual com colunas de status:
@@ -1663,6 +1693,48 @@ Grupo Econômico
 - RN13.6: Análise semântica só processa comentários dos últimos 30 dias
 - RN13.7: SPI e CPI só são calculados se projeto tiver % de progresso declarado
 - RN13.8: Alertas de abandono têm prioridade máxima e escalam automaticamente
+
+---
+
+### RF23: Perfil do Usuário (Autoedição)
+
+**Descrição**: O sistema deve permitir que cada usuário autenticado visualize e gerencie seu próprio perfil, podendo atualizar dados pessoais e alterar sua senha de acesso de forma autônoma.
+
+**Referências**: Integra com RNF01 (autenticação e autorização), RF14 (contexto de tenant e empresa)
+
+**Funcionalidades**:
+
+1. **Visualização do Perfil**:
+   - Exibição dos dados do usuário autenticado:
+     * Nome completo, e-mail, avatar (URL)
+     * Perfil de acesso (somente leitura)
+     * Tenant e empresa(s) vinculadas (somente leitura)
+     * Data de criação da conta
+   - Exibição de todas as empresas às quais o usuário tem acesso
+
+2. **Edição de Dados Pessoais**:
+   - Nome completo
+   - E-mail
+   - URL do avatar
+   - Validação de formato de e-mail antes de salvar
+
+3. **Alteração de Senha**:
+   - Confirmação da senha atual antes de permitir a troca
+   - Nova senha com confirmação (ambas devem ser iguais)
+   - Validação de tamanho mínimo da nova senha (8 caracteres)
+   - Feedback de sucesso ou erro ao usuário
+
+4. **Organização em Abas**:
+   - **Aba Dados Pessoais**: Formulário de edição de nome, e-mail e avatar
+   - **Aba Segurança**: Formulário de alteração de senha
+   - **Aba Empresa**: Detalhes do tenant e empresas vinculadas ao usuário
+
+**Regras de Negócio**:
+- RN23.1: Usuário só pode editar seu próprio perfil (sem acesso ao perfil de outros)
+- RN23.2: Perfil de acesso e vínculo com empresas/tenant NÃO podem ser alterados pelo próprio usuário
+- RN23.3: A troca de senha exige confirmação da senha atual
+- RN23.4: Nova senha e confirmação devem ser idênticas
+- RN23.5: Alterações de dados pessoais são refletidas imediatamente na sessão ativa
 
 ---
 

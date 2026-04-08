@@ -18,6 +18,8 @@
 | 4 | `marcos_projeto`: novos campos `status` e `data_conclusao` | Django | Permite rastrear se o marco foi concluído, atrasado ou está pendente |
 | 5 | Nova tabela `log_demandas` (auditoria) | Django | Rastreabilidade completa de ações sobre demandas com snapshot antes/depois |
 | 6 | Nova tabela `log_projetos` (auditoria) | Django | Rastreabilidade de eventos que afetam projetos |
+| 7 | `empresas`: novos campos `email` e `telefone` | Frontend | Dados de contato necessários para auto-preenchimento no cadastro de clientes internos |
+| 8 | `clientes`: novo campo `empresa_id` (FK → `empresas`) | Frontend | Vincula clientes internos à empresa do grupo, permitindo auto-preenchimento do formulário de criação |
 
 ---
 
@@ -82,6 +84,8 @@ O SGPI é uma plataforma **multi-tenant** para gestão do ciclo completo de inov
 | `tenant_id` | UUID | FK → tenants.id, NOT NULL | Tenant proprietário |
 | `nome` | VARCHAR(200) | NOT NULL | Nome da empresa/unidade |
 | `cnpj` | VARCHAR(18) | UNIQUE, NULL | CNPJ da empresa |
+| `email` | VARCHAR(255) | NULL | E-mail de contato da empresa |
+| `telefone` | VARCHAR(20) | NULL | Telefone de contato da empresa |
 | `descricao` | TEXT | NULL | Descrição |
 | `segmento` | VARCHAR(100) | NULL | Segmento de atuação |
 | `ativa` | BOOLEAN | NOT NULL, DEFAULT true | Status de ativação |
@@ -234,12 +238,15 @@ O SGPI é uma plataforma **multi-tenant** para gestão do ciclo completo de inov
 
 ### Tabela: `clientes`
 
+> ⚠️ **Mudança v3:** Adicionado `empresa_id` (FK → `empresas`) para vincular clientes internos à empresa do grupo de origem, possibilitando auto-preenchimento de dados cadastrais no formulário de criação.
+
 | Coluna | Tipo | Restrição | Descrição |
 |---|---|---|---|
 | `id` | UUID | PK | Identificador único |
 | `nome` | VARCHAR(200) | NOT NULL | Nome do cliente |
 | `origem` | VARCHAR(30) | NOT NULL | Enum: `externo`, `interno`, `investimento_interno` |
-| `natureza_juridica` | VARCHAR(40) | NULL | Enum: tipo jurídico |
+| `empresa_id` | UUID | FK → empresas.id, NULL | Empresa interna vinculada (preenchido quando `origem` é `interno` ou `investimento_interno`) |
+| `natureza_juridica` | VARCHAR(40) | NULL | Enum: tipo jurídico (preenchido quando `origem` é `externo`) |
 | `cnpj` | VARCHAR(18) | NULL | CNPJ |
 | `email` | VARCHAR(255) | NULL | E-mail de contato |
 | `telefone` | VARCHAR(20) | NULL | Telefone |
