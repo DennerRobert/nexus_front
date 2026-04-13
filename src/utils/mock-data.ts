@@ -1,4 +1,3 @@
-import { v4 as uuidv4 } from "uuid";
 import type { Empresa } from "@/interfaces/empresa.interface";
 import type { KanbanEmpresaConfig } from "@/interfaces/kanban-config.interface";
 import type {
@@ -39,23 +38,39 @@ const sixMonthsAhead = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000);
 
 // IDs fixos para referências
 export const empresaIds = {
-  alpha: uuidv4(),
-  beta: uuidv4(),
-  gama: uuidv4(),
+  alpha: "empresa-alpha-001",
+  beta: "empresa-beta-002",
+  gama: "empresa-gama-003",
 };
 
 const clienteIds = {
-  varejoABC: uuidv4(),
-  techCorp: uuidv4(),
-  prefeitura: uuidv4(),
-  internoAlpha: uuidv4(),
-  internoBeta: uuidv4(),
+  varejoABC: "cliente-varejo-abc-001",
+  techCorp: "cliente-tech-corp-002",
+  prefeitura: "cliente-prefeitura-sp-003",
+  internoAlpha: "cliente-interno-alpha-004",
+  internoBeta: "cliente-interno-beta-005",
 };
 
-const colaboradorIds: Record<string, string> = {};
-for (let i = 1; i <= 18; i++) {
-  colaboradorIds[`colab${i}`] = uuidv4();
-}
+const colaboradorIds: Record<string, string> = {
+  colab1:  "colaborador-001",
+  colab2:  "colaborador-002",
+  colab3:  "colaborador-003",
+  colab4:  "colaborador-004",
+  colab5:  "colaborador-005",
+  colab6:  "colaborador-006",
+  colab7:  "colaborador-007",
+  colab8:  "colaborador-008",
+  colab9:  "colaborador-009",
+  colab10: "colaborador-010",
+  colab11: "colaborador-011",
+  colab12: "colaborador-012",
+  colab13: "colaborador-013",
+  colab14: "colaborador-014",
+  colab15: "colaborador-015",
+  colab16: "colaborador-016",
+  colab17: "colaborador-017",
+  colab18: "colaborador-018",
+};
 
 // IDs fixos para garantir consistência entre demandas e avaliações
 export const demandaIds = {
@@ -65,17 +80,17 @@ export const demandaIds = {
 };
 
 const projetoIds = {
-  projeto1: uuidv4(),
-  projeto2: uuidv4(),
+  projeto1: "projeto-app-varejo-abc-001",
+  projeto2: "projeto-gestao-contratos-002",
 };
 
 const produtoIds = {
-  produto1: uuidv4(),
+  produto1: "produto-sgp-001",
 };
 
 const squadIds = {
-  squad1: uuidv4(),
-  squad2: uuidv4(),
+  squad1: "squad-varejo-abc-001",
+  squad2: "squad-sustentacao-sgp-002",
 };
 
 // Empresas do grupo
@@ -530,6 +545,11 @@ export const mockDemandas: Demanda[] = [
     prazoDesejado: sixMonthsAhead,
     solicitanteId: colaboradorIds.colab1,
     status: "convertida" as StatusDemanda,
+    etapa: "concluido",
+    exibirVitrine: true,
+    avaliacoes: [],
+    anexosIds: [],
+    historicoEtapas: [],
     projetoId: projetoIds.projeto1,
     createdAt: threeMonthsAgo,
     updatedAt: monthAgo,
@@ -557,6 +577,11 @@ export const mockDemandas: Demanda[] = [
     prazoDesejado: new Date(now.getTime() + 120 * 24 * 60 * 60 * 1000),
     solicitanteId: colaboradorIds.colab8,
     status: "aguardando_aprovacao" as StatusDemanda,
+    etapa: "analise_comite",
+    exibirVitrine: false,
+    avaliacoes: [],
+    anexosIds: [],
+    historicoEtapas: [],
     createdAt: monthAgo,
     updatedAt: now,
   },
@@ -582,6 +607,11 @@ export const mockDemandas: Demanda[] = [
     prazoDesejado: new Date(now.getTime() + 240 * 24 * 60 * 60 * 1000),
     solicitanteId: colaboradorIds.colab9,
     status: "em_analise" as StatusDemanda,
+    etapa: "analise_inicial",
+    exibirVitrine: true,
+    avaliacoes: [],
+    anexosIds: [],
+    historicoEtapas: [],
     createdAt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
     updatedAt: now,
   },
@@ -632,7 +662,7 @@ export const mockProdutos: Produto[] = [
     descricao:
       "Sistema interno de gestão de projetos utilizado por todas as empresas do grupo.",
     empresaDonaId: empresaIds.alpha,
-    projetoOrigemId: uuidv4(),
+    projetoOrigemId: "projeto-sgp-origem-legado-000",
     clienteIds: [clienteIds.internoAlpha, clienteIds.internoBeta],
     status: "em_operacao" as StatusProduto,
     classificacao: "interno" as ClassificacaoProduto,
@@ -663,7 +693,7 @@ export const mockSquads: Squad[] = [
     id: squadIds.squad2,
     nome: "Squad Sustentação SGP",
     objetivo: "Manter e evoluir o Sistema de Gestão de Projetos interno",
-    projetoId: uuidv4(),
+    projetoId: "projeto-sgp-origem-legado-000",
     status: "ativo" as StatusSquad,
     dataInicio: new Date(2024, 6, 1),
     custoMensal: 35000,
@@ -676,7 +706,7 @@ export const mockSquads: Squad[] = [
 export const mockAlocacoes: Alocacao[] = [
   // Squad Varejo ABC
   {
-    id: uuidv4(),
+    id: "alocacao-001",
     colaboradorId: colaboradorIds.colab1,
     squadId: squadIds.squad1,
     papel: "tech_lead" as PapelAlocacao,
@@ -688,7 +718,7 @@ export const mockAlocacoes: Alocacao[] = [
     updatedAt: now,
   },
   {
-    id: uuidv4(),
+    id: "alocacao-002",
     colaboradorId: colaboradorIds.colab4,
     squadId: squadIds.squad1,
     papel: "desenvolvedor_pleno" as PapelAlocacao,
@@ -700,7 +730,7 @@ export const mockAlocacoes: Alocacao[] = [
     updatedAt: now,
   },
   {
-    id: uuidv4(),
+    id: "alocacao-003",
     colaboradorId: colaboradorIds.colab11,
     squadId: squadIds.squad1,
     papel: "desenvolvedor_pleno" as PapelAlocacao,
@@ -712,7 +742,7 @@ export const mockAlocacoes: Alocacao[] = [
     updatedAt: now,
   },
   {
-    id: uuidv4(),
+    id: "alocacao-004",
     colaboradorId: colaboradorIds.colab2,
     squadId: squadIds.squad1,
     papel: "ux_designer" as PapelAlocacao,
@@ -725,7 +755,7 @@ export const mockAlocacoes: Alocacao[] = [
   },
   // Squad Sustentação
   {
-    id: uuidv4(),
+    id: "alocacao-005",
     colaboradorId: colaboradorIds.colab18,
     squadId: squadIds.squad2,
     papel: "tech_lead" as PapelAlocacao,
@@ -737,7 +767,7 @@ export const mockAlocacoes: Alocacao[] = [
     updatedAt: now,
   },
   {
-    id: uuidv4(),
+    id: "alocacao-006",
     colaboradorId: colaboradorIds.colab10,
     squadId: squadIds.squad2,
     papel: "desenvolvedor_junior" as PapelAlocacao,

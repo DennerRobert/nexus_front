@@ -10,6 +10,7 @@ import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/Button";
 import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -32,7 +33,7 @@ const origemVariantMap: Record<OrigemCliente, BadgeVariant> = {
 };
 
 const ClientesPage = () => {
-  const { create, update } = useClienteStore();
+  const { create, update, isLoading, error } = useClienteStore();
   const todosClientes = useClienteStore((s) => s.clientes);
   const clientes = useMemo(() => todosClientes.filter((c) => c.ativo), [todosClientes]);
   const todasEmpresas = useEmpresaStore((s) => s.empresas);
@@ -106,19 +107,17 @@ const ClientesPage = () => {
     setShowModal(true);
   };
 
-  const handleFormSubmit = (data: ClienteSchemaType) => {
-    try {
-      if (editingCliente) {
-        update(editingCliente.id, data);
-        toast.success("Cliente atualizado com sucesso!");
-      } else {
-        create(data);
-        toast.success("Cliente criado com sucesso!");
-      }
+  const handleFormSubmit = async (data: ClienteSchemaType) => {
+    const resultado = editingCliente
+      ? await update(editingCliente.id, data)
+      : await create(data);
+
+    if (resultado) {
+      toast.success(editingCliente ? "Cliente atualizado com sucesso!" : "Cliente criado com sucesso!");
       setShowModal(false);
       reset();
-    } catch {
-      toast.error("Erro ao salvar cliente");
+    } else {
+      toast.error("Erro ao salvar cliente. Tente novamente.");
     }
   };
 
@@ -200,6 +199,25 @@ const ClientesPage = () => {
     ],
     []
   );
+
+  if (isLoading && clientes.length === 0) {
+    return (
+      <Layout title="Clientes" subtitle="Gestão de clientes e modelos de receita">
+        <PageSkeleton stats={4} tableRows={6} tableCols={6} />
+      </Layout>
+    );
+  }
+
+  if (error && clientes.length === 0) {
+    return (
+      <Layout title="Clientes" subtitle="Gestão de clientes e modelos de receita">
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-center space-y-2">
+          <p className="text-red-400 font-medium">Erro ao carregar clientes</p>
+          <p className="text-sm text-slate-400">{error}</p>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout

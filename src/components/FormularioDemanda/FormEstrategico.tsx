@@ -70,25 +70,27 @@ export const FormEstrategico = ({ empresaId, empresaNome, redirectTo }: FormEstr
 
   const existeReferencia = watch("existeSolucaoMercado");
 
-  const handleFormSubmit = (data: DemandaSchemaType) => {
-    try {
-      const demanda = create(
-        {
-          ...data,
-          empresaUnidadeApoioId: empresaId,
-          prazoDesejado: new Date(data.prazoDesejado),
-          exibirVitrine: false,
-        },
-        usuarioId || "demo-user-id"
-      );
-      updateStatus(demanda.id, "em_analise");
-      toast.success("Iniciativa estratégica registrada!", {
-        description: "Encaminhada para análise pelo comitê estratégico.",
-      });
-      router.push(redirectTo ?? `/demandas/empresa/${empresaId}`);
-    } catch {
-      toast.error("Erro ao registrar iniciativa");
+  const handleFormSubmit = async (data: DemandaSchemaType) => {
+    const demanda = await create(
+      {
+        ...data,
+        empresaUnidadeApoioId: empresaId,
+        prazoDesejado: new Date(data.prazoDesejado),
+        exibirVitrine: false,
+      },
+      usuarioId || "demo-user-id",
+    );
+
+    if (!demanda) {
+      toast.error("Erro ao registrar iniciativa. Tente novamente.");
+      return;
     }
+
+    updateStatus(demanda.id, "em_analise");
+    toast.success("Iniciativa estratégica registrada!", {
+      description: "Encaminhada para análise pelo comitê estratégico.",
+    });
+    router.push(redirectTo ?? `/demandas/empresa/${empresaId}`);
   };
 
   return (

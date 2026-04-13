@@ -8,7 +8,7 @@ import {
   ETAPAS_ORDEM,
   ETAPA_DEMANDA_LABELS,
 } from "@/interfaces/etapa-demanda.interface";
-import { mockKanbanConfigs } from "@/utils/mock-data";
+import { kanbanConfigService } from "@/services/kanban-config.service";
 
 const criarConfigPadrao = (empresaId: string): KanbanEmpresaConfig => ({
   empresaId,
@@ -23,10 +23,12 @@ const criarConfigPadrao = (empresaId: string): KanbanEmpresaConfig => ({
 
 interface KanbanConfigState {
   configs: Record<string, KanbanEmpresaConfig>;
+  isLoading: boolean;
 }
 
 interface KanbanConfigActions {
   getConfig: (empresaId: string) => KanbanEmpresaConfig;
+  fetchAll: () => Promise<void>;
   updateConfig: (empresaId: string, etapas: EtapaKanbanConfig[]) => void;
   resetConfig: (empresaId: string) => void;
 }
@@ -36,52 +38,57 @@ type KanbanConfigStore = KanbanConfigState & KanbanConfigActions;
 export const useKanbanConfigStore = create<KanbanConfigStore>()(
   persist(
     (set, get) => ({
-      configs: mockKanbanConfigs,
+      configs: {},
+      isLoading: false,
 
       getConfig: (empresaId) =>
         get().configs[empresaId] ?? criarConfigPadrao(empresaId),
 
+      fetchAll: async () => {
+        set({ isLoading: true });
+        try {
+          const apiConfigs = await kanbanConfigService.getAll();
+          const { configs: local } = get();
+
+          // Mescla: usa config local (customizações do usuário) quando disponível,
+          // senão usa o que veio da API.
+          const merged: Record<string, KanbanEmpresaConfig> = {};
+          for (const cfg of apiConfigs) {
+            merged[cfg.empresaId] = local[cfg.empresaId] ?? cfg;
+          }
+
+          set({ configs: merged, isLoading: false });
+        } catch {
+          set({ isLoading: false });
+        }
+      },
+
       updateConfig: (empresaId, etapas) => {
+        const updated: KanbanEmpresaConfig = { empresaId, etapas, updatedAt: new Date() };
         set((state) => ({
-          configs: {
-            ...state.configs,
-            [empresaId]: {
-              empresaId,
-              etapas,
-              updatedAt: new Date(),
-            },
-          },
+          configs: { ...state.configs, [empresaId]: updated },
         }));
+        void kanbanConfigService
+          .update(empresaId, etapas)
+          .catch(() => {});
       },
 
       resetConfig: (empresaId) => {
-        set((state) => {
-          const configPadrao =
-            mockKanbanConfigs[empresaId] ?? criarConfigPadrao(empresaId);
-          return {
-            configs: {
-              ...state.configs,
-              [empresaId]: configPadrao,
-            },
-          };
-        });
+        const configPadrao = criarConfigPadrao(empresaId);
+        set((state) => ({
+          configs: { ...state.configs, [empresaId]: configPadrao },
+        }));
+        void kanbanConfigService
+          .update(empresaId, configPadrao.etapas)
+          .catch(() => {});
       },
     }),
     {
       name: "sgpi-kanban-config",
-      // Garante que os configs mock da sessão atual sempre estejam presentes,
-      // mas preserva customizações salvas pelo usuário para os mesmos IDs.
-      merge: (persistedState, currentState) => {
-        const persisted =
-          (persistedState as Partial<KanbanConfigState>)?.configs ?? {};
-        return {
-          ...currentState,
-          configs: {
-            ...mockKanbanConfigs,
-            ...persisted,
-          },
-        };
-      },
-    }
-  )
+      version: 2,
+      migrate: () => ({ configs: {}, isLoading: false }),
+      // Persiste apenas as customizações do usuário
+      partialize: (state) => ({ configs: state.configs }),
+    },
+  ),
 );

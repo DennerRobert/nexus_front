@@ -1,8 +1,8 @@
 import { create } from "zustand";
-import { v4 as uuidv4 } from "uuid";
-import type { Usuario, LoginFormData, PerfilUsuario } from "@/interfaces/usuario.interface";
-import { mockEmpresas } from "@/utils/mock-data";
-import { mockTenants } from "./tenant.store";
+import { persist } from "zustand/middleware";
+import type { Usuario, LoginFormData } from "@/interfaces/usuario.interface";
+import { authService } from "@/services/auth.service";
+import { deserialize } from "@/lib/deserialize";
 
 interface AuthState {
   usuario: Usuario | null;
@@ -13,224 +13,74 @@ interface AuthState {
 
 interface AuthActions {
   login: (data: LoginFormData) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   getUsuarioAtual: () => Usuario | null;
   getUsuarioAtualId: () => string | null;
   setLoading: (loading: boolean) => void;
   clearError: () => void;
-  // Ações de perfil
   atualizarPerfil: (data: { nome: string; email: string }) => void;
   alterarSenha: (senhaAtual: string, novaSenha: string) => boolean;
 }
 
 type AuthStore = AuthState & AuthActions;
 
-// Pegar IDs do primeiro tenant e empresas para os usuários mock
-const defaultTenantId = mockTenants[0]?.id || uuidv4();
-const defaultEmpresaIds = mockEmpresas.map((e) => e.id);
-
-// Criar usuários mock para testes
-const createMockUsuarios = (): Usuario[] => {
-  const now = new Date();
-  const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-
-  return [
-    {
-      id: uuidv4(),
-      nome: "Administrador do Sistema",
-      email: "admin@nexus.com",
-      senha: "123456",
-      perfil: "administrador",
-      tenantId: defaultTenantId,
-      empresaId: defaultEmpresaIds[0],
-      empresaIds: defaultEmpresaIds,
-      ativo: true,
-      createdAt: threeMonthsAgo,
-      updatedAt: now,
-    },
-    {
-      id: uuidv4(),
-      nome: "Maria Silva",
-      email: "gestor@nexus.com",
-      senha: "123456",
-      perfil: "gestor_inovacao",
-      tenantId: defaultTenantId,
-      empresaId: defaultEmpresaIds[0],
-      empresaIds: defaultEmpresaIds,
-      ativo: true,
-      createdAt: threeMonthsAgo,
-      updatedAt: now,
-    },
-    {
-      id: uuidv4(),
-      nome: "João Santos",
-      email: "analista@nexus.com",
-      senha: "123456",
-      perfil: "analista_inovacao",
-      tenantId: defaultTenantId,
-      empresaId: defaultEmpresaIds[1],
-      empresaIds: defaultEmpresaIds.slice(0, 2),
-      ativo: true,
-      createdAt: threeMonthsAgo,
-      updatedAt: now,
-    },
-    {
-      id: uuidv4(),
-      nome: "Ana Oliveira",
-      email: "po@nexus.com",
-      senha: "123456",
-      perfil: "product_owner",
-      tenantId: defaultTenantId,
-      empresaId: defaultEmpresaIds[0],
-      empresaIds: defaultEmpresaIds.slice(0, 1),
-      ativo: true,
-      createdAt: threeMonthsAgo,
-      updatedAt: now,
-    },
-    {
-      id: uuidv4(),
-      nome: "Carlos Dev",
-      email: "dev@nexus.com",
-      senha: "123456",
-      perfil: "especialista",
-      tenantId: defaultTenantId,
-      empresaId: defaultEmpresaIds[2],
-      empresaIds: defaultEmpresaIds,
-      ativo: true,
-      createdAt: threeMonthsAgo,
-      updatedAt: now,
-    },
-    {
-      id: uuidv4(),
-      nome: "Fernanda Assistente",
-      email: "assistente@nexus.com",
-      senha: "123456",
-      perfil: "assistente_inovacao",
-      tenantId: defaultTenantId,
-      empresaId: defaultEmpresaIds[0],
-      empresaIds: defaultEmpresaIds,
-      ativo: true,
-      createdAt: threeMonthsAgo,
-      updatedAt: now,
-    },
-    {
-      id: uuidv4(),
-      nome: "Roberto Cliente",
-      email: "cliente@nexus.com",
-      senha: "123456",
-      perfil: "cliente",
-      tenantId: defaultTenantId,
-      empresaId: defaultEmpresaIds[0],
-      empresaIds: defaultEmpresaIds.slice(0, 1),
-      ativo: true,
-      createdAt: threeMonthsAgo,
-      updatedAt: now,
-    },
-    {
-      id: uuidv4(),
-      nome: "Paula Comercial",
-      email: "comercial@nexus.com",
-      senha: "123456",
-      perfil: "comercial",
-      tenantId: defaultTenantId,
-      empresaId: defaultEmpresaIds[1],
-      empresaIds: defaultEmpresaIds,
-      ativo: true,
-      createdAt: threeMonthsAgo,
-      updatedAt: now,
-    },
-  ];
-};
-
-const mockUsuarios = createMockUsuarios();
-
-export const useAuthStore = create<AuthStore>((set, get) => ({
-  usuario: null,
-  isAuthenticated: false,
-  isLoading: false,
-  error: null,
-
-  login: async (data: LoginFormData) => {
-    set({ isLoading: true, error: null });
-
-    // Simula delay de rede
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const usuario = mockUsuarios.find(
-      (u) => u.email.toLowerCase() === data.email.toLowerCase() && u.senha === data.senha
-    );
-
-    if (usuario) {
-      if (!usuario.ativo) {
-        set({ isLoading: false, error: "Usuário inativo. Entre em contato com o administrador." });
-        return false;
-      }
-
-      set({
-        usuario,
-        isAuthenticated: true,
-        isLoading: false,
-        error: null,
-      });
-      return true;
-    }
-
-    set({
-      isLoading: false,
-      error: "Email ou senha incorretos.",
-    });
-    return false;
-  },
-
-  logout: () => {
-    set({
+export const useAuthStore = create<AuthStore>()(
+  persist(
+    (set, get) => ({
       usuario: null,
       isAuthenticated: false,
+      isLoading: false,
       error: null,
-    });
-  },
 
-  getUsuarioAtual: () => get().usuario,
+      login: async (data: LoginFormData) => {
+        set({ isLoading: true, error: null });
+        try {
+          const { usuario } = await authService.login(data);
+          const deserialized = deserialize(usuario);
+          set({ usuario: deserialized, isAuthenticated: true, isLoading: false });
+          return true;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Email ou senha incorretos.";
+          set({ isLoading: false, error: msg });
+          return false;
+        }
+      },
 
-  getUsuarioAtualId: () => get().usuario?.id || null,
+      logout: async () => {
+        set({ usuario: null, isAuthenticated: false, error: null });
+        void authService.logout().catch(() => {});
+      },
 
-  setLoading: (loading: boolean) => set({ isLoading: loading }),
+      getUsuarioAtual: () => get().usuario,
 
-  clearError: () => set({ error: null }),
+      getUsuarioAtualId: () => get().usuario?.id ?? null,
 
-  atualizarPerfil: (data) => {
-    const { usuario } = get();
-    if (!usuario) return;
+      setLoading: (loading) => set({ isLoading: loading }),
 
-    const updatedAt = new Date();
-    const usuarioAtualizado: Usuario = { ...usuario, ...data, updatedAt };
+      clearError: () => set({ error: null }),
 
-    set({ usuario: usuarioAtualizado });
+      // Atualização local de perfil (sem backend por ora)
+      atualizarPerfil: (data) => {
+        const { usuario } = get();
+        if (!usuario) return;
+        set({ usuario: { ...usuario, ...data, updatedAt: new Date() } });
+      },
 
-    // Sincroniza o mock para que login subsequente funcione
-    const idx = mockUsuarios.findIndex((u) => u.id === usuario.id);
-    if (idx !== -1) {
-      mockUsuarios[idx] = { ...mockUsuarios[idx], ...data, updatedAt };
-    }
-  },
-
-  alterarSenha: (senhaAtual, novaSenha) => {
-    const { usuario } = get();
-    if (!usuario) return false;
-
-    if (usuario.senha !== senhaAtual) return false;
-
-    const updatedAt = new Date();
-    set({ usuario: { ...usuario, senha: novaSenha, updatedAt } });
-
-    const idx = mockUsuarios.findIndex((u) => u.id === usuario.id);
-    if (idx !== -1) {
-      mockUsuarios[idx] = { ...mockUsuarios[idx], senha: novaSenha, updatedAt };
-    }
-
-    return true;
-  },
-}));
-
-// Exportar usuários mock para referência
-export { mockUsuarios };
+      // Alteração local de senha (sem backend por ora)
+      alterarSenha: (senhaAtual, novaSenha) => {
+        const { usuario } = get();
+        if (!usuario || usuario.senha !== senhaAtual) return false;
+        set({ usuario: { ...usuario, senha: novaSenha, updatedAt: new Date() } });
+        return true;
+      },
+    }),
+    {
+      name: "sgpi-auth",
+      // Persiste apenas os dados da sessão do usuário
+      partialize: (state) => ({
+        usuario: state.usuario,
+        isAuthenticated: state.isAuthenticated,
+      }),
+    },
+  ),
+);

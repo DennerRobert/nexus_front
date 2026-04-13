@@ -184,18 +184,22 @@ const ProjetoDetailPage = ({ params }: ProjetoDetailPageProps) => {
     toast.success("Projeto concluído!");
   };
 
-  const handleConverterEmProduto = () => {
+  const handleConverterEmProduto = async () => {
     if (!nomeProduto.trim()) {
       toast.error("Informe o nome do produto");
       return;
     }
-    const produto = criarDeProjeto(projeto, {
+    const produto = await criarDeProjeto(projeto, {
       nome: nomeProduto,
       descricao: projeto.descricao,
       classificacao,
     });
-    toast.success("Produto criado com sucesso!");
-    router.push(`/produtos/${produto.id}`);
+    if (produto) {
+      toast.success("Produto criado com sucesso!");
+      router.push(`/produtos/${produto.id}`);
+    } else {
+      toast.error("Erro ao criar produto. Tente novamente.");
+    }
   };
 
   const handleAddTarefa = (status: StatusTarefa) => {

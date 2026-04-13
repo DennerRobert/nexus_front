@@ -10,6 +10,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { Button } from "@/components/ui/Button";
 import { useProdutoStore } from "@/stores/produto.store";
 import { useEmpresaStore } from "@/stores/empresa.store";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import type { Produto, StatusProduto, ClassificacaoProduto } from "@/interfaces/produto.interface";
 import { STATUS_PRODUTO_LABELS, CLASSIFICACAO_PRODUTO_LABELS } from "@/interfaces/produto.interface";
 import { formatDate, formatCurrency } from "@/utils/formatters";
@@ -28,7 +29,7 @@ const classificacaoVariantMap: Record<ClassificacaoProduto, BadgeVariant> = {
 };
 
 const ProdutosPage = () => {
-  const { getAll } = useProdutoStore();
+  const { getAll, isLoading, error } = useProdutoStore();
   const { getById: getEmpresa } = useEmpresaStore();
   const produtos = getAll();
 
@@ -101,6 +102,25 @@ const ProdutosPage = () => {
     ],
     [getEmpresa]
   );
+
+  if (isLoading && produtos.length === 0) {
+    return (
+      <Layout title="Produtos" subtitle="Produtos em operação">
+        <PageSkeleton stats={4} tableRows={5} tableCols={5} showButton={false} />
+      </Layout>
+    );
+  }
+
+  if (error && produtos.length === 0) {
+    return (
+      <Layout title="Produtos" subtitle="Produtos em operação">
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-center space-y-2">
+          <p className="text-red-400 font-medium">Erro ao carregar produtos</p>
+          <p className="text-sm text-slate-400">{error}</p>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout title="Produtos" subtitle="Produtos em operação">

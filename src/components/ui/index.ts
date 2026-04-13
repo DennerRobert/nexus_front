@@ -7,3 +7,4 @@ export * from "./Card";
 export * from "./Modal";
 export * from "./StatCard";
 export * from "./EmptyState";
+export * from "./Skeleton";

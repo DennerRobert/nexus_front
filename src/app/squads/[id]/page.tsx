@@ -112,18 +112,25 @@ const SquadDetailPage = ({ params }: SquadDetailPageProps) => {
     toast.success("Squad encerrado!");
   };
 
-  const handleAddMember = () => {
+  const handleAddMember = async () => {
     if (!selectedColaborador) {
       toast.error("Selecione um colaborador");
       return;
     }
-    criarAlocacao({
+
+    const result = await criarAlocacao({
       colaboradorId: selectedColaborador,
       squadId: id,
       papel: selectedPapel,
       percentual,
       dataInicio: new Date(),
     });
+
+    if (!result) {
+      toast.error("Erro ao adicionar membro. Tente novamente.");
+      return;
+    }
+
     atualizarCustoMensal(id, calcularCustoSquad(id));
     setShowAddMemberModal(false);
     setSelectedColaborador("");

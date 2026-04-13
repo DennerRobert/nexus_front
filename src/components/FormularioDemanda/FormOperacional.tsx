@@ -56,25 +56,27 @@ export const FormOperacional = ({ empresaId, empresaNome, redirectTo }: FormOper
     },
   });
 
-  const handleFormSubmit = (data: DemandaSchemaType) => {
-    try {
-      const demanda = create(
-        {
-          ...data,
-          empresaUnidadeApoioId: empresaId,
-          prazoDesejado: new Date(data.prazoDesejado),
-          exibirVitrine: false,
-        },
-        usuarioId || "demo-user-id"
-      );
-      updateStatus(demanda.id, "em_analise");
-      toast.success("Demanda de produtividade registrada!", {
-        description: "Sua demanda foi encaminhada para análise.",
-      });
-      router.push(redirectTo ?? `/demandas/empresa/${empresaId}`);
-    } catch {
-      toast.error("Erro ao registrar demanda");
+  const handleFormSubmit = async (data: DemandaSchemaType) => {
+    const demanda = await create(
+      {
+        ...data,
+        empresaUnidadeApoioId: empresaId,
+        prazoDesejado: new Date(data.prazoDesejado),
+        exibirVitrine: false,
+      },
+      usuarioId || "demo-user-id",
+    );
+
+    if (!demanda) {
+      toast.error("Erro ao registrar demanda. Tente novamente.");
+      return;
     }
+
+    updateStatus(demanda.id, "em_analise");
+    toast.success("Demanda de produtividade registrada!", {
+      description: "Sua demanda foi encaminhada para análise.",
+    });
+    router.push(redirectTo ?? `/demandas/empresa/${empresaId}`);
   };
 
   return (

@@ -98,17 +98,19 @@ const ColaboradorDetailPage = ({ params }: ColaboradorDetailPageProps) => {
     setValue("setorIds", updated);
   };
 
-  const handleFormSubmit = (data: ColaboradorSchemaType) => {
-    try {
-      update(id, {
-        ...data,
-        dataAdmissao: new Date(data.dataAdmissao),
-      });
-      toast.success("Colaborador atualizado com sucesso!");
-      router.push(`/colaboradores/${id}`);
-    } catch {
-      toast.error("Erro ao atualizar colaborador");
+  const handleFormSubmit = async (data: ColaboradorSchemaType) => {
+    const result = await update(id, {
+      ...data,
+      dataAdmissao: new Date(data.dataAdmissao),
+    });
+
+    if (!result) {
+      toast.error("Erro ao atualizar colaborador. Tente novamente.");
+      return;
     }
+
+    toast.success("Colaborador atualizado com sucesso!");
+    router.push(`/colaboradores/${id}`);
   };
 
   const alocacoesComSquad = useMemo(() => {

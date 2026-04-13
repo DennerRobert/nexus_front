@@ -30,13 +30,13 @@ const NovoSquadPage = () => {
     resolver: zodResolver(squadSchema),
   });
 
-  const handleFormSubmit = (data: SquadSchemaType) => {
-    try {
-      const squad = create(data);
+  const handleFormSubmit = async (data: SquadSchemaType) => {
+    const squad = await create(data);
+    if (squad) {
       toast.success("Squad criado com sucesso!");
       router.push(`/squads/${squad.id}`);
-    } catch {
-      toast.error("Erro ao criar squad");
+    } else {
+      toast.error("Erro ao criar squad. Tente novamente.");
     }
   };
 

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
 import { useEmpresaStore } from "@/stores/empresa.store";
+import { useColaboradorStore } from "@/stores/colaborador.store";
 import { useColaboradoresContexto } from "@/hooks/useContextoData";
 import type { ColaboradorComOcupacao } from "@/interfaces/colaborador.interface";
 import {
@@ -16,11 +17,14 @@ import {
   SENIORIDADE_ABREV,
 } from "@/interfaces/colaborador.interface";
 import { formatCurrency } from "@/utils/formatters";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Plus, Users, AlertTriangle, CheckCircle, Eye, Edit } from "lucide-react";
 
 const ColaboradoresPage = () => {
   const { colaboradoresComOcupacao } = useColaboradoresContexto();
   const { getById: getEmpresa } = useEmpresaStore();
+  const isLoading = useColaboradorStore((s) => s.isLoading);
+  const error = useColaboradorStore((s) => s.error);
 
   const stats = useMemo(() => {
     const total = colaboradoresComOcupacao.length;
@@ -154,6 +158,25 @@ const ColaboradoresPage = () => {
     ],
     [getEmpresa]
   );
+
+  if (isLoading && colaboradoresComOcupacao.length === 0) {
+    return (
+      <Layout title="Colaboradores" subtitle="Gestão de recursos humanos e especialidades">
+        <PageSkeleton stats={5} tableRows={6} tableCols={6} />
+      </Layout>
+    );
+  }
+
+  if (error && colaboradoresComOcupacao.length === 0) {
+    return (
+      <Layout title="Colaboradores" subtitle="Gestão de recursos humanos e especialidades">
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-center space-y-2">
+          <p className="text-red-400 font-medium">Erro ao carregar colaboradores</p>
+          <p className="text-sm text-slate-400">{error}</p>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout

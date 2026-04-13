@@ -84,27 +84,27 @@ const NovaDemandaPage = () => {
     setValue("clienteIds", updated);
   };
 
-  const handleFormSubmit = (data: DemandaSchemaType) => {
-    try {
-      const demanda = create(
-        {
-          ...data,
-          prazoDesejado: new Date(data.prazoDesejado),
-          exibirVitrine: data.exibirVitrine ?? true,
-        },
-        usuarioId || "demo-user-id"
-      );
-      
-      // Enviar para análise automaticamente
-      updateStatus(demanda.id, "em_analise");
-      
-      toast.success("Ideia de inovação submetida com sucesso!", {
-        description: "Você será notificado sobre o progresso da avaliação.",
-      });
-      router.push(`/demandas/${demanda.id}`);
-    } catch {
-      toast.error("Erro ao submeter ideia");
+  const handleFormSubmit = async (data: DemandaSchemaType) => {
+    const demanda = await create(
+      {
+        ...data,
+        prazoDesejado: new Date(data.prazoDesejado),
+        exibirVitrine: data.exibirVitrine ?? true,
+      },
+      usuarioId || "demo-user-id",
+    );
+
+    if (!demanda) {
+      toast.error("Erro ao submeter ideia. Tente novamente.");
+      return;
     }
+
+    updateStatus(demanda.id, "em_analise");
+
+    toast.success("Ideia de inovação submetida com sucesso!", {
+      description: "Você será notificado sobre o progresso da avaliação.",
+    });
+    router.push(`/demandas/${demanda.id}`);
   };
 
   return (

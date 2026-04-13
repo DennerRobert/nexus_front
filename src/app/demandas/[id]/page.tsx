@@ -173,9 +173,9 @@ const DemandaDetailPage = ({ params }: DemandaDetailPageProps) => {
     toast.success("Ajustes solicitados");
   };
 
-  const handleCriarProjeto = () => {
+  const handleCriarProjeto = async () => {
     const empresaDona = empresas[0];
-    const projeto = criarProjeto(
+    const projeto = await criarProjeto(
       {
         nome: demanda.titulo,
         descricao: demanda.ideiaSolucao,
@@ -183,8 +183,14 @@ const DemandaDetailPage = ({ params }: DemandaDetailPageProps) => {
         clienteIds: demanda.clienteIds,
         orcamento: mockPipelineResult.custoEstimado,
       },
-      id
+      id,
     );
+
+    if (!projeto) {
+      toast.error("Erro ao criar projeto. Tente novamente.");
+      return;
+    }
+
     converterEmProjeto(id, projeto.id);
     toast.success("Projeto criado com sucesso!");
     router.push(`/projetos/${projeto.id}`);

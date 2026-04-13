@@ -1,171 +1,90 @@
 import { create } from "zustand";
-import { v4 as uuidv4 } from "uuid";
 import type { Setor, SetorFormData } from "@/interfaces/setor.interface";
+import { setorService } from "@/services/setor.service";
+import { deserialize, deserializeList } from "@/lib/deserialize";
+import { ApiError } from "@/lib/api-client";
 
-const now = new Date();
-
-const mockSetores: Setor[] = [
-  {
-    id: uuidv4(),
-    nome: "Tecnologia da Informação",
-    descricao: "Desenvolvimento de software, infraestrutura e soluções tecnológicas",
-    ativo: true,
-    createdAt: now,
-    updatedAt: now,
-  },
-  {
-    id: uuidv4(),
-    nome: "Dados e Analytics",
-    descricao: "Engenharia de dados, ciência de dados e inteligência de negócios",
-    ativo: true,
-    createdAt: now,
-    updatedAt: now,
-  },
-  {
-    id: uuidv4(),
-    nome: "Segurança da Informação",
-    descricao: "Segurança cibernética, compliance e proteção de dados",
-    ativo: true,
-    createdAt: now,
-    updatedAt: now,
-  },
-  {
-    id: uuidv4(),
-    nome: "Produto",
-    descricao: "Gestão de produtos digitais, roadmap e discovery",
-    ativo: true,
-    createdAt: now,
-    updatedAt: now,
-  },
-  {
-    id: uuidv4(),
-    nome: "Design",
-    descricao: "UX, UI, design de experiência e pesquisa com usuários",
-    ativo: true,
-    createdAt: now,
-    updatedAt: now,
-  },
-  {
-    id: uuidv4(),
-    nome: "Infraestrutura e DevOps",
-    descricao: "Cloud, containerização, CI/CD e automação de infraestrutura",
-    ativo: true,
-    createdAt: now,
-    updatedAt: now,
-  },
-  {
-    id: uuidv4(),
-    nome: "Qualidade de Software",
-    descricao: "QA, testes automatizados e garantia de qualidade",
-    ativo: true,
-    createdAt: now,
-    updatedAt: now,
-  },
-  {
-    id: uuidv4(),
-    nome: "Financeiro",
-    descricao: "Finanças, contabilidade e controladoria",
-    ativo: true,
-    createdAt: now,
-    updatedAt: now,
-  },
-  {
-    id: uuidv4(),
-    nome: "Recursos Humanos",
-    descricao: "Gestão de pessoas, recrutamento e desenvolvimento organizacional",
-    ativo: true,
-    createdAt: now,
-    updatedAt: now,
-  },
-  {
-    id: uuidv4(),
-    nome: "Comercial",
-    descricao: "Vendas, parcerias e desenvolvimento de negócios",
-    ativo: true,
-    createdAt: now,
-    updatedAt: now,
-  },
-  {
-    id: uuidv4(),
-    nome: "Marketing",
-    descricao: "Marketing digital, conteúdo e estratégias de crescimento",
-    ativo: true,
-    createdAt: now,
-    updatedAt: now,
-  },
-  {
-    id: uuidv4(),
-    nome: "Operações",
-    descricao: "Processos operacionais, logística e eficiência organizacional",
-    ativo: true,
-    createdAt: now,
-    updatedAt: now,
-  },
-];
+const toError = (err: unknown): string =>
+  err instanceof ApiError ? err.message : "Erro inesperado. Tente novamente.";
 
 interface SetorState {
   setores: Setor[];
   isLoading: boolean;
+  error: string | null;
 }
 
 interface SetorActions {
   getAll: () => Setor[];
   getById: (id: string) => Setor | undefined;
   getAtivos: () => Setor[];
-  create: (data: SetorFormData) => Setor;
-  update: (id: string, data: Partial<SetorFormData>) => Setor | undefined;
-  remove: (id: string) => boolean;
-  setLoading: (loading: boolean) => void;
+  fetchAll: () => Promise<void>;
+  create: (data: SetorFormData) => Promise<Setor | undefined>;
+  update: (id: string, data: Partial<SetorFormData>) => Promise<Setor | undefined>;
+  remove: (id: string) => Promise<boolean>;
 }
 
 type SetorStore = SetorState & SetorActions;
 
 export const useSetorStore = create<SetorStore>((set, get) => ({
-  setores: mockSetores,
+  setores: [],
   isLoading: false,
+  error: null,
 
   getAll: () => get().setores,
 
-  getById: (id: string) => get().setores.find((s) => s.id === id),
+  getById: (id) => get().setores.find((s) => s.id === id),
 
   getAtivos: () => get().setores.filter((s) => s.ativo),
 
-  create: (data: SetorFormData) => {
-    const newSetor: Setor = {
-      ...data,
-      id: uuidv4(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    set((state) => ({ setores: [...state.setores, newSetor] }));
-    return newSetor;
+  fetchAll: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const data = await setorService.getAll();
+      set({ setores: deserializeList(data), isLoading: false });
+    } catch (err) {
+      set({ error: toError(err), isLoading: false });
+    }
   },
 
-  update: (id: string, data: Partial<SetorFormData>) => {
-    let updated: Setor | undefined;
-    set((state) => ({
-      setores: state.setores.map((s) => {
-        if (s.id === id) {
-          updated = { ...s, ...data, updatedAt: new Date() };
-          return updated;
-        }
-        return s;
-      }),
-    }));
-    return updated;
+  create: async (data) => {
+    try {
+      const novo = await setorService.create(data);
+      const deserialized = deserialize(novo);
+      set((state) => ({ setores: [...state.setores, deserialized] }));
+      return deserialized;
+    } catch (err) {
+      set({ error: toError(err) });
+      return undefined;
+    }
   },
 
-  remove: (id: string) => {
-    const exists = get().setores.some((s) => s.id === id);
-    if (exists) {
+  update: async (id, data) => {
+    try {
+      const updated = await setorService.update(id, data);
+      const deserialized = deserialize(updated);
+      set((state) => ({
+        setores: state.setores.map((s) => (s.id === id ? deserialized : s)),
+      }));
+      return deserialized;
+    } catch (err) {
+      set({ error: toError(err) });
+      return undefined;
+    }
+  },
+
+  remove: async (id) => {
+    try {
+      await setorService.remove(id);
+      // Soft-delete: marca como inativo localmente
       set((state) => ({
         setores: state.setores.map((s) =>
-          s.id === id ? { ...s, ativo: false, updatedAt: new Date() } : s
+          s.id === id ? { ...s, ativo: false, updatedAt: new Date() } : s,
         ),
       }));
+      return true;
+    } catch (err) {
+      set({ error: toError(err) });
+      return false;
     }
-    return exists;
   },
-
-  setLoading: (loading: boolean) => set({ isLoading: loading }),
 }));

@@ -1,12 +1,24 @@
 import { create } from "zustand";
-import { v4 as uuidv4 } from "uuid";
-import type { Produto, ProdutoFormData, StatusProduto, ClassificacaoProduto } from "@/interfaces/produto.interface";
+import type {
+  Produto,
+  ProdutoFormData,
+  StatusProduto,
+  ClassificacaoProduto,
+} from "@/interfaces/produto.interface";
 import type { Projeto } from "@/interfaces/projeto.interface";
-import { mockProdutos } from "@/utils/mock-data";
+import { produtoService } from "@/services/produto.service";
+import { deserialize, deserializeList } from "@/lib/deserialize";
+import { ApiError } from "@/lib/api-client";
+
+const toError = (err: unknown): string =>
+  err instanceof ApiError ? err.message : "Erro inesperado. Tente novamente.";
+
+const PRODUTO_DATE_FIELDS = ["dataLancamento", "dataDescontinuacao"];
 
 interface ProdutoState {
   produtos: Produto[];
   isLoading: boolean;
+  error: string | null;
 }
 
 interface ProdutoActions {
@@ -16,107 +28,124 @@ interface ProdutoActions {
   getByClassificacao: (classificacao: ClassificacaoProduto) => Produto[];
   getByEmpresa: (empresaId: string) => Produto[];
   getAtivos: () => Produto[];
-  criarDeProjeto: (projeto: Projeto, data: ProdutoFormData) => Produto;
-  update: (id: string, data: Partial<ProdutoFormData>) => Produto | undefined;
-  updateStatus: (id: string, status: StatusProduto) => Produto | undefined;
-  iniciarOperacao: (id: string) => Produto | undefined;
-  descontinuar: (id: string) => Produto | undefined;
-  remove: (id: string) => boolean;
-  setLoading: (loading: boolean) => void;
+  fetchAll: () => Promise<void>;
+  criarDeProjeto: (projeto: Projeto, data: ProdutoFormData) => Promise<Produto | undefined>;
+  update: (id: string, data: Partial<ProdutoFormData>) => Promise<Produto | undefined>;
+
+  // Status mutations: otimistas + background API
+  updateStatus: (id: string, status: StatusProduto) => void;
+  iniciarOperacao: (id: string) => void;
+  descontinuar: (id: string) => void;
+  remove: (id: string) => Promise<boolean>;
 }
 
 type ProdutoStore = ProdutoState & ProdutoActions;
 
 export const useProdutoStore = create<ProdutoStore>((set, get) => ({
-  produtos: mockProdutos,
+  produtos: [],
   isLoading: false,
+  error: null,
 
   getAll: () => get().produtos,
 
-  getById: (id: string) => get().produtos.find((p) => p.id === id),
+  getById: (id) => get().produtos.find((p) => p.id === id),
 
-  getByStatus: (status: StatusProduto) =>
-    get().produtos.filter((p) => p.status === status),
+  getByStatus: (status) => get().produtos.filter((p) => p.status === status),
 
-  getByClassificacao: (classificacao: ClassificacaoProduto) =>
+  getByClassificacao: (classificacao) =>
     get().produtos.filter((p) => p.classificacao === classificacao),
 
-  getByEmpresa: (empresaId: string) =>
+  getByEmpresa: (empresaId) =>
     get().produtos.filter((p) => p.empresaDonaId === empresaId),
 
   getAtivos: () =>
     get().produtos.filter(
-      (p) => p.status === "em_operacao" || p.status === "em_transicao"
+      (p) => p.status === "em_operacao" || p.status === "em_transicao",
     ),
 
-  criarDeProjeto: (projeto: Projeto, data: ProdutoFormData) => {
-    const newProduto: Produto = {
-      id: uuidv4(),
-      nome: data.nome,
-      descricao: data.descricao,
-      empresaDonaId: projeto.empresaDonaId,
-      projetoOrigemId: projeto.id,
-      clienteIds: projeto.clienteIds,
-      status: "em_transicao",
-      classificacao: data.classificacao,
-      responsavelOperacaoId: data.responsavelOperacaoId,
-      custoDesenvolvimento: projeto.custoAtual,
-      custoOperacaoMensal: 0,
-      dataLancamento: new Date(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    set((state) => ({
-      produtos: [...state.produtos, newProduto],
-    }));
-    return newProduto;
-  },
-
-  update: (id: string, data: Partial<ProdutoFormData>) => {
-    let updated: Produto | undefined;
-    set((state) => ({
-      produtos: state.produtos.map((p) => {
-        if (p.id === id) {
-          updated = { ...p, ...data, updatedAt: new Date() };
-          return updated;
-        }
-        return p;
-      }),
-    }));
-    return updated;
-  },
-
-  updateStatus: (id: string, status: StatusProduto) => {
-    let updated: Produto | undefined;
-    set((state) => ({
-      produtos: state.produtos.map((p) => {
-        if (p.id === id) {
-          updated = { ...p, status, updatedAt: new Date() };
-          return updated;
-        }
-        return p;
-      }),
-    }));
-    return updated;
-  },
-
-  iniciarOperacao: (id: string) => {
-    return get().updateStatus(id, "em_operacao");
-  },
-
-  descontinuar: (id: string) => {
-    return get().updateStatus(id, "descontinuado");
-  },
-
-  remove: (id: string) => {
-    const exists = get().produtos.some((p) => p.id === id);
-    if (exists) {
-      set((state) => ({
-        produtos: state.produtos.filter((p) => p.id !== id),
-      }));
+  fetchAll: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const data = await produtoService.getAll();
+      set({ produtos: deserializeList(data, PRODUTO_DATE_FIELDS), isLoading: false });
+    } catch (err) {
+      set({ error: toError(err), isLoading: false });
     }
-    return exists;
   },
 
-  setLoading: (loading: boolean) => set({ isLoading: loading }),
+  criarDeProjeto: async (projeto, data) => {
+    try {
+      const payload = {
+        nome: data.nome,
+        descricao: data.descricao,
+        empresaDonaId: projeto.empresaDonaId,
+        projetoOrigemId: projeto.id,
+        clienteIds: projeto.clienteIds,
+        status: "em_transicao" as StatusProduto,
+        classificacao: data.classificacao,
+        responsavelOperacaoId: data.responsavelOperacaoId,
+        custoDesenvolvimento: projeto.custoAtual,
+        custoOperacaoMensal: 0,
+        dataLancamento: new Date().toISOString(),
+      };
+      const novo = await produtoService.create(payload);
+      const deserialized = deserialize(novo, PRODUTO_DATE_FIELDS);
+      set((state) => ({ produtos: [...state.produtos, deserialized] }));
+      return deserialized;
+    } catch (err) {
+      set({ error: toError(err) });
+      return undefined;
+    }
+  },
+
+  update: async (id, data) => {
+    try {
+      const updated = await produtoService.update(id, data);
+      const deserialized = deserialize(updated, PRODUTO_DATE_FIELDS);
+      set((state) => ({
+        produtos: state.produtos.map((p) => (p.id === id ? deserialized : p)),
+      }));
+      return deserialized;
+    } catch (err) {
+      set({ error: toError(err) });
+      return undefined;
+    }
+  },
+
+  updateStatus: (id, status) => {
+    set((state) => ({
+      produtos: state.produtos.map((p) =>
+        p.id === id ? { ...p, status, updatedAt: new Date() } : p,
+      ),
+    }));
+    void produtoService
+      .update(id, { status } as unknown as Partial<ProdutoFormData>)
+      .catch(() => set({ error: "Erro ao atualizar status do produto." }));
+  },
+
+  iniciarOperacao: (id) => get().updateStatus(id, "em_operacao"),
+
+  descontinuar: (id) => {
+    set((state) => ({
+      produtos: state.produtos.map((p) =>
+        p.id === id
+          ? { ...p, status: "descontinuado" as StatusProduto, dataDescontinuacao: new Date(), updatedAt: new Date() }
+          : p,
+      ),
+    }));
+    void produtoService
+      .update(id, { status: "descontinuado" } as unknown as Partial<ProdutoFormData>)
+      .catch(() => set({ error: "Erro ao descontinuar produto." }));
+  },
+
+  remove: async (id) => {
+    try {
+      await produtoService.remove(id);
+      set((state) => ({ produtos: state.produtos.filter((p) => p.id !== id) }));
+      return true;
+    } catch (err) {
+      set({ error: toError(err) });
+      return false;
+    }
+  },
 }));

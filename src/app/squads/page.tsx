@@ -11,6 +11,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { useSquadStore } from "@/stores/squad.store";
 import { useProjetoStore } from "@/stores/projeto.store";
 import { useAlocacaoStore } from "@/stores/alocacao.store";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import type { Squad, StatusSquad } from "@/interfaces/squad.interface";
 import { STATUS_SQUAD_LABELS } from "@/interfaces/squad.interface";
 import { formatDate, formatCurrency } from "@/utils/formatters";
@@ -24,7 +25,7 @@ const statusVariantMap: Record<StatusSquad, BadgeVariant> = {
 };
 
 const SquadsPage = () => {
-  const { getAll } = useSquadStore();
+  const { getAll, isLoading, error } = useSquadStore();
   const { getById: getProjeto } = useProjetoStore();
   const { getAtivasBySquad } = useAlocacaoStore();
   const squads = getAll();
@@ -108,6 +109,25 @@ const SquadsPage = () => {
     ],
     [getProjeto, getAtivasBySquad]
   );
+
+  if (isLoading && squads.length === 0) {
+    return (
+      <Layout title="Squads" subtitle="Gestão de squads transversais">
+        <PageSkeleton stats={4} tableRows={5} tableCols={5} />
+      </Layout>
+    );
+  }
+
+  if (error && squads.length === 0) {
+    return (
+      <Layout title="Squads" subtitle="Gestão de squads transversais">
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-center space-y-2">
+          <p className="text-red-400 font-medium">Erro ao carregar squads</p>
+          <p className="text-sm text-slate-400">{error}</p>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout

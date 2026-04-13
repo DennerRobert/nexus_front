@@ -9,6 +9,7 @@ import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { EmpresaFormModal } from "@/components/EmpresaFormModal";
 import { useEmpresaStore } from "@/stores/empresa.store";
 import { useColaboradorStore } from "@/stores/colaborador.store";
@@ -18,7 +19,7 @@ import { formatDate } from "@/utils/formatters";
 import { Plus, Building2, Users, FolderKanban, Edit, Eye } from "lucide-react";
 
 const EmpresasPage = () => {
-  const { getAll, create, update } = useEmpresaStore();
+  const { getAll, create, update, isLoading, error } = useEmpresaStore();
   const { getByEmpresa } = useColaboradorStore();
   const { getByEmpresa: getProjetosByEmpresa } = useProjetoStore();
   const empresas = getAll();
@@ -36,18 +37,16 @@ const EmpresasPage = () => {
     setShowModal(true);
   };
 
-  const handleSalvar = (data: EmpresaFormData) => {
-    try {
-      if (editingEmpresa) {
-        update(editingEmpresa.id, data);
-        toast.success("Empresa atualizada com sucesso!");
-      } else {
-        create(data);
-        toast.success("Empresa criada com sucesso!");
-      }
+  const handleSalvar = async (data: EmpresaFormData) => {
+    const resultado = editingEmpresa
+      ? await update(editingEmpresa.id, data)
+      : await create(data);
+
+    if (resultado) {
+      toast.success(editingEmpresa ? "Empresa atualizada com sucesso!" : "Empresa criada com sucesso!");
       setShowModal(false);
-    } catch {
-      toast.error("Erro ao salvar empresa");
+    } else {
+      toast.error("Erro ao salvar empresa. Tente novamente.");
     }
   };
 
@@ -149,6 +148,25 @@ const EmpresasPage = () => {
     ],
     [getByEmpresa, getProjetosByEmpresa]
   );
+
+  if (isLoading && empresas.length === 0) {
+    return (
+      <Layout title="Empresas" subtitle="Gestão das empresas do grupo econômico">
+        <PageSkeleton stats={4} tableRows={6} tableCols={6} />
+      </Layout>
+    );
+  }
+
+  if (error && empresas.length === 0) {
+    return (
+      <Layout title="Empresas" subtitle="Gestão das empresas do grupo econômico">
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-center space-y-2">
+          <p className="text-red-400 font-medium">Erro ao carregar empresas</p>
+          <p className="text-sm text-slate-400">{error}</p>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout

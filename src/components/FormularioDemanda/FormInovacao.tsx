@@ -63,25 +63,27 @@ export const FormInovacao = ({ empresaId, empresaNome, redirectTo }: FormInovaca
   const existeSolucaoMercado = watch("existeSolucaoMercado");
   const exibirVitrine = watch("exibirVitrine") ?? true;
 
-  const handleFormSubmit = (data: DemandaSchemaType) => {
-    try {
-      const demanda = create(
-        {
-          ...data,
-          empresaUnidadeApoioId: empresaId,
-          prazoDesejado: new Date(data.prazoDesejado),
-          exibirVitrine: data.exibirVitrine ?? true,
-        },
-        usuarioId || "demo-user-id"
-      );
-      updateStatus(demanda.id, "em_analise");
-      toast.success("Ideia de inovação submetida com sucesso!", {
-        description: "Você será notificado sobre o progresso da avaliação.",
-      });
-      router.push(redirectTo ?? `/demandas/empresa/${empresaId}`);
-    } catch {
-      toast.error("Erro ao submeter ideia");
+  const handleFormSubmit = async (data: DemandaSchemaType) => {
+    const demanda = await create(
+      {
+        ...data,
+        empresaUnidadeApoioId: empresaId,
+        prazoDesejado: new Date(data.prazoDesejado),
+        exibirVitrine: data.exibirVitrine ?? true,
+      },
+      usuarioId || "demo-user-id",
+    );
+
+    if (!demanda) {
+      toast.error("Erro ao submeter ideia. Tente novamente.");
+      return;
     }
+
+    updateStatus(demanda.id, "em_analise");
+    toast.success("Ideia de inovação submetida com sucesso!", {
+      description: "Você será notificado sobre o progresso da avaliação.",
+    });
+    router.push(redirectTo ?? `/demandas/empresa/${empresaId}`);
   };
 
   return (

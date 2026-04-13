@@ -63,17 +63,19 @@ const NovoColaboradorPage = () => {
     setValue("setorIds", updated);
   };
 
-  const handleFormSubmit = (data: ColaboradorSchemaType) => {
-    try {
-      create({
-        ...data,
-        dataAdmissao: new Date(data.dataAdmissao),
-      });
-      toast.success("Colaborador criado com sucesso!");
-      router.push("/colaboradores");
-    } catch {
-      toast.error("Erro ao criar colaborador");
+  const handleFormSubmit = async (data: ColaboradorSchemaType) => {
+    const result = await create({
+      ...data,
+      dataAdmissao: new Date(data.dataAdmissao),
+    });
+
+    if (!result) {
+      toast.error("Erro ao criar colaborador. Tente novamente.");
+      return;
     }
+
+    toast.success("Colaborador criado com sucesso!");
+    router.push("/colaboradores");
   };
 
   return (
