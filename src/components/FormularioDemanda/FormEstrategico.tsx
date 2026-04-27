@@ -13,6 +13,7 @@ import { Select } from "@/components/ui/Select";
 import { useDemandaStore } from "@/stores/demanda.store";
 import { useAuth } from "@/hooks/useAuth";
 import { demandaSchema, type DemandaSchemaType } from "@/schemas/demanda.schema";
+import { coerceDate } from "@/utils/formatters";
 import { ArrowLeft, Send, Info } from "lucide-react";
 
 interface FormEstrategicoProps {
@@ -75,6 +76,7 @@ export const FormEstrategico = ({ empresaId, empresaNome, redirectTo }: FormEstr
       {
         ...data,
         empresaUnidadeApoioId: empresaId,
+        clienteIds: data.clienteIds ?? [],
         prazoDesejado: new Date(data.prazoDesejado),
         exibirVitrine: false,
       },
@@ -231,7 +233,7 @@ export const FormEstrategico = ({ empresaId, empresaNome, redirectTo }: FormEstr
               label="Prazo desejado para início"
               type="date"
               error={errors.prazoDesejado?.message}
-              {...register("prazoDesejado")}
+              {...register("prazoDesejado", { setValueAs: coerceDate })}
             />
           </div>
         </CardContent>

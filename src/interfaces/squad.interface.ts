@@ -13,6 +13,7 @@ export interface Squad {
   dataInicio: Date;
   dataFim?: Date;
   custoMensal: number;
+  liderTecnicoId?: string;
   createdAt: Date;
   updatedAt: Date;
 }

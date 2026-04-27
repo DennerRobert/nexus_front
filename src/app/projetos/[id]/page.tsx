@@ -47,6 +47,7 @@ import type { Tarefa, StatusTarefa } from "@/interfaces/tarefa.interface";
 import { PRIORIDADE_TAREFA_LABELS } from "@/interfaces/tarefa.interface";
 import { ICONE_MARCO_LABELS } from "@/interfaces/marco-projeto.interface";
 import type { Demanda } from "@/interfaces/demanda.interface";
+import type { Cliente } from "@/interfaces/cliente.interface";
 import {
   ESTAGIO_IDEIA_LABELS,
   HORIZONTE_INOVACAO_LABELS,
@@ -54,7 +55,7 @@ import {
 } from "@/interfaces/demanda.interface";
 import { tarefaSchema, type TarefaSchemaType } from "@/schemas/tarefa.schema";
 import { marcoProjetoSchema, type MarcoProjetoSchemaType } from "@/schemas/marco-projeto.schema";
-import { formatDate, formatCurrency } from "@/utils/formatters";
+import { formatDate, formatCurrency, coerceDate } from "@/utils/formatters";
 import { cn } from "@/utils/cn";
 import {
   ArrowLeft,
@@ -133,15 +134,15 @@ const ProjetoDetailPage = ({ params }: ProjetoDetailPageProps) => {
 
   // Dados
   const projeto = getById(id);
-  const empresa = projeto ? getEmpresa(projeto.empresaDonaId) : null;
-  const squad = projeto ? getSquad(projeto.id) : null;
+  const empresa = projeto ? getEmpresa(projeto.empresaDonaId) : undefined;
+  const squad = projeto ? getSquad(projeto.id) : undefined;
   const alocacoes = squad ? getAtivasBySquad(squad.id) : [];
   const tarefas = getTarefas(id);
   const marcos = getMarcos(id);
   const horasProjeto = getHorasPorProjeto(id);
   const scoresProjeto = getScoresPorProjeto(id);
   const saudeProjeto = getSaudeProjeto(id);
-  const demanda = projeto?.demandaId ? getDemanda(projeto.demandaId) : null;
+  const demanda = projeto?.demandaId ? (getDemanda(projeto.demandaId) ?? null) : null;
 
   if (!projeto) {
     return (
@@ -156,7 +157,9 @@ const ProjetoDetailPage = ({ params }: ProjetoDetailPageProps) => {
     );
   }
 
-  const clientes = projeto.clienteIds.map((cId) => getCliente(cId)).filter(Boolean);
+  const clientes = projeto.clienteIds
+    .map((cId) => getCliente(cId))
+    .filter((c): c is Cliente => c !== undefined);
 
   // Handlers
   const handleAprovar = () => {
@@ -456,7 +459,7 @@ const ProjetoDetailPage = ({ params }: ProjetoDetailPageProps) => {
               label="Data"
               type="date"
               error={marcoForm.formState.errors.data?.message}
-              {...marcoForm.register("data")}
+              {...marcoForm.register("data", { setValueAs: coerceDate })}
             />
             <Select
               label="Ícone"

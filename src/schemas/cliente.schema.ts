@@ -47,7 +47,7 @@ export const clienteSchema = z
 
     modeloReceita: modeloReceitaEnum.optional(),
 
-    ativo: z.boolean().default(true),
+    ativo: z.boolean(),
   })
   .refine(
     (data) => {

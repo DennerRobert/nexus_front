@@ -30,7 +30,7 @@ export const tarefaSchema = z.object({
 
   sprintId: z.string().uuid().optional(),
 
-  prioridade: prioridadeTarefaEnum.default("media"),
+  prioridade: prioridadeTarefaEnum,
 
   estimativaHoras: z
     .number()
@@ -38,7 +38,7 @@ export const tarefaSchema = z.object({
     .max(1000, "A estimativa parece muito alta")
     .optional(),
 
-  dataLimite: z.coerce.date().optional(),
+  dataLimite: z.date().optional(),
 
   tags: z.array(z.string().max(50)).optional(),
 });

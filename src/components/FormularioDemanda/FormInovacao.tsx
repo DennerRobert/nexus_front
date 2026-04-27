@@ -16,6 +16,7 @@ import { useDemandaStore } from "@/stores/demanda.store";
 import { useAnexoDemandaStore } from "@/stores/anexo-demanda.store";
 import { useAuth } from "@/hooks/useAuth";
 import { demandaSchema, type DemandaSchemaType } from "@/schemas/demanda.schema";
+import { coerceDate } from "@/utils/formatters";
 import type { AnexoDemanda } from "@/interfaces/anexo-demanda.interface";
 import {
   ESTAGIO_IDEIA_LABELS,
@@ -68,6 +69,7 @@ export const FormInovacao = ({ empresaId, empresaNome, redirectTo }: FormInovaca
       {
         ...data,
         empresaUnidadeApoioId: empresaId,
+        clienteIds: data.clienteIds ?? [],
         prazoDesejado: new Date(data.prazoDesejado),
         exibirVitrine: data.exibirVitrine ?? true,
       },
@@ -239,7 +241,7 @@ export const FormInovacao = ({ empresaId, empresaNome, redirectTo }: FormInovaca
               label="Prazo Desejado para Início"
               type="date"
               error={errors.prazoDesejado?.message}
-              {...register("prazoDesejado")}
+              {...register("prazoDesejado", { setValueAs: coerceDate })}
             />
           </div>
         </CardContent>

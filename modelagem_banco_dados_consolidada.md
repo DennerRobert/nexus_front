@@ -16,8 +16,7 @@
 | 2 | `colaborador_empresas` (simples) → `vinculos_empregaticio` (rica) | Django | A tabela de junção agora carrega os campos financeiros e contratuais do vínculo por empresa |
 | 3 | `demandas`: novo campo `dados_customizados JSONB` | Django | Armazena as respostas do formulário customizável da empresa sem criar tabela intermediária |
 | 4 | `marcos_projeto`: novos campos `status` e `data_conclusao` | Django | Permite rastrear se o marco foi concluído, atrasado ou está pendente |
-| 5 | Nova tabela `log_demandas` (auditoria) | Django | Rastreabilidade completa de ações sobre demandas com snapshot antes/depois |
-| 6 | Nova tabela `log_projetos` (auditoria) | Django | Rastreabilidade de eventos que afetam projetos |
+| 5 | `log_demandas` e `log_projetos` consolidados em `logs_auditoria` | Refatoração | Tabela unificada e polimórfica com suporte a qualquer entidade, diff de dados e metadados de sessão (IP, user-agent, dispositivo) |
 | 7 | `empresas`: novos campos `email` e `telefone` | Frontend | Dados de contato necessários para auto-preenchimento no cadastro de clientes internos |
 | 8 | `clientes`: novo campo `empresa_id` (FK → `empresas`) | Frontend | Vincula clientes internos à empresa do grupo, permitindo auto-preenchimento do formulário de criação |
 | 9 | `usuarios.perfil`: adicionados valores `financeiro` e `rh` ao enum | Frontend | Novos perfis com acesso total ao módulo de Colaboradores e visibilidade do campo `custo_hora`; necessários para controle de acesso previsto em RNF01/RN03.2 |
@@ -104,13 +103,18 @@ O SGPI é uma plataforma **multi-tenant** para gestão do ciclo completo de inov
 | Coluna | Tipo | Restrição | Descrição |
 |---|---|---|---|
 | `id` | UUID | PK | Identificador único |
-| `nome` | VARCHAR(200) | NOT NULL, UNIQUE | Nome do setor |
+| `empresa_id` | UUID | FK → empresas.id, NOT NULL | Empresa à qual o setor pertence |
+| `nome` | VARCHAR(200) | NOT NULL | Nome do setor |
 | `descricao` | TEXT | NULL | Descrição |
 | `ativo` | BOOLEAN | NOT NULL, DEFAULT true | Status de ativação |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | Data de criação |
 | `updated_at` | TIMESTAMPTZ | NOT NULL | Data de atualização |
 
-> **Nota:** Setores são globais no sistema; o vínculo com colaboradores se dá via `colaborador_setores`.
+> **Relacionamento:** `setores.empresa_id` → `empresas.id` (N:1) → `empresas.tenant_id` → `tenants.id` (N:1)
+>
+> **Índice UNIQUE:** (`empresa_id`, `nome`) — nomes de setor são únicos por empresa.
+>
+> **Nota:** Setores pertencem a uma empresa; o vínculo com colaboradores se dá via `colaborador_setores`.
 
 ---
 
@@ -155,6 +159,7 @@ O SGPI é uma plataforma **multi-tenant** para gestão do ciclo completo de inov
 | Coluna | Tipo | Restrição | Descrição |
 |---|---|---|---|
 | `id` | UUID | PK | Identificador único |
+| `tenant_id` | UUID | FK → tenants.id, NOT NULL | Tenant proprietário |
 | `nome` | VARCHAR(200) | NOT NULL | Nome completo |
 | `email` | VARCHAR(255) | NOT NULL, UNIQUE | E-mail profissional |
 | `matricula` | VARCHAR(50) | NULL, UNIQUE | Matrícula (global) |
@@ -210,26 +215,16 @@ O SGPI é uma plataforma **multi-tenant** para gestão do ciclo completo de inov
 
 ---
 
-### Tabela: `colaborador_especialidade_tecnologias` *(N:N — tecnologias por especialidade)*
-
-| Coluna | Tipo | Restrição | Descrição |
-|---|---|---|---|
-| `especialidade_id` | UUID | FK → colaborador_especialidades.id | Especialidade |
-| `tecnologia` | VARCHAR(50) | NOT NULL | Tecnologia (enum catalogado) |
-
-> PK composta: (`especialidade_id`, `tecnologia`)
->
-> **Nota:** Usar tabela relacional (em vez de `JSONField`) permite queries de matchmaking como "buscar todos os colaboradores com React".
-
----
-
-### Tabela: `colaborador_especialidade_tecnologias_custom`
+### Tabela: `colaborador_especialidade_tecnologias`
 
 | Coluna | Tipo | Restrição | Descrição |
 |---|---|---|---|
 | `id` | UUID | PK | Identificador único |
-| `especialidade_id` | UUID | FK → colaborador_especialidades.id | Especialidade |
-| `tecnologia` | VARCHAR(100) | NOT NULL | Tecnologia customizada (texto livre) |
+| `especialidade_id` | UUID | FK → colaborador_especialidades.id, NOT NULL | Especialidade |
+| `tecnologia` | VARCHAR(100) | NOT NULL | Tecnologia (enum catalogado ou texto livre) |
+| `origem` | VARCHAR(10) | NOT NULL, DEFAULT `'padrao'` | Enum: `padrao` (catálogo do sistema) ou `custom` (entrada livre do colaborador) |
+
+> **Nota:** Usar tabela relacional (em vez de `JSONField`) permite queries de matchmaking como "buscar todos os colaboradores com React". O campo `origem` diferencia tecnologias do catálogo do sistema (`padrao`) de entradas livres criadas pelo colaborador (`custom`).
 
 ---
 
@@ -244,6 +239,7 @@ O SGPI é uma plataforma **multi-tenant** para gestão do ciclo completo de inov
 | Coluna | Tipo | Restrição | Descrição |
 |---|---|---|---|
 | `id` | UUID | PK | Identificador único |
+| `tenant_id` | UUID | FK → tenants.id, NOT NULL | Tenant proprietário (garante isolamento para clientes externos, cujo `empresa_id` é NULL) |
 | `nome` | VARCHAR(200) | NOT NULL | Nome do cliente |
 | `origem` | VARCHAR(30) | NOT NULL | Enum: `externo`, `interno`, `investimento_interno` |
 | `empresa_id` | UUID | FK → empresas.id, NULL | Empresa interna vinculada (preenchido quando `origem` é `interno` ou `investimento_interno`) |
@@ -267,6 +263,7 @@ O SGPI é uma plataforma **multi-tenant** para gestão do ciclo completo de inov
 | Coluna | Tipo | Restrição | Descrição |
 |---|---|---|---|
 | `id` | UUID | PK | Identificador único |
+| `tenant_id` | UUID | FK → tenants.id, NOT NULL | Tenant proprietário |
 | `solicitante_id` | UUID | FK → usuarios.id, NOT NULL | Usuário solicitante |
 | `empresa_unidade_apoio_id` | UUID | FK → empresas.id, NOT NULL | Empresa/unidade de apoio |
 | `comite_id` | UUID | FK → comites.id, NULL | Comitê responsável |
@@ -338,23 +335,6 @@ O SGPI é uma plataforma **multi-tenant** para gestão do ciclo completo de inov
 | `observacao` | TEXT | NULL | Observação da transição |
 | `justificativa` | TEXT | NULL | Justificativa (obrigatória em arquivamentos) |
 | `data` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | Data da transição |
-
----
-
-### Tabela: `log_demandas` *(auditoria detalhada)*
-
-> ⚠️ **Novo em v2 (Django):** Rastreabilidade total das ações sobre demandas com snapshot dos dados antes e depois de cada mudança, atendendo ao RNF04 (Auditabilidade).
-
-| Coluna | Tipo | Restrição | Descrição |
-|---|---|---|---|
-| `id` | UUID | PK | Identificador único |
-| `demanda_id` | UUID | FK → demandas.id, NOT NULL | Demanda auditada |
-| `usuario_id` | UUID | FK → usuarios.id, NULL | Usuário que realizou a ação |
-| `acao` | VARCHAR(100) | NOT NULL | Código da ação (ex: `atualizou_titulo`, `adicionou_anexo`) |
-| `descricao` | TEXT | NULL | Descrição legível da ação |
-| `dados_anteriores` | JSONB | NULL | Snapshot dos campos antes da mudança |
-| `dados_novos` | JSONB | NULL | Snapshot dos campos após a mudança |
-| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | Data e hora da ação |
 
 ---
 
@@ -451,6 +431,7 @@ O SGPI é uma plataforma **multi-tenant** para gestão do ciclo completo de inov
 | Coluna | Tipo | Restrição | Descrição |
 |---|---|---|---|
 | `id` | UUID | PK | Identificador único |
+| `tenant_id` | UUID | FK → tenants.id, NOT NULL | Tenant proprietário |
 | `empresa_dona_id` | UUID | FK → empresas.id, NOT NULL | Empresa dona do P&L |
 | `squad_id` | UUID | FK → squads.id, NULL | Squad executante |
 | `demanda_id` | UUID | FK → demandas.id, NULL | Demanda de origem |
@@ -479,21 +460,6 @@ O SGPI é uma plataforma **multi-tenant** para gestão do ciclo completo de inov
 | `cliente_id` | UUID | FK → clientes.id | Cliente vinculado |
 
 > PK composta: (`projeto_id`, `cliente_id`)
-
----
-
-### Tabela: `log_projetos` *(auditoria)*
-
-> ⚠️ **Novo em v2 (Django):** Rastreabilidade de eventos que afetam projetos, atendendo ao RNF04 (Auditabilidade).
-
-| Coluna | Tipo | Restrição | Descrição |
-|---|---|---|---|
-| `id` | UUID | PK | Identificador único |
-| `projeto_id` | UUID | FK → projetos.id, NOT NULL | Projeto auditado |
-| `usuario_id` | UUID | FK → usuarios.id, NULL | Usuário que realizou a ação |
-| `acao` | VARCHAR(100) | NOT NULL | Código da ação (ex: `status_pausado`, `orcamento_atualizado`) |
-| `descricao` | TEXT | NULL | Descrição legível da ação |
-| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | Data e hora da ação |
 
 ---
 
@@ -558,6 +524,7 @@ O SGPI é uma plataforma **multi-tenant** para gestão do ciclo completo de inov
 | Coluna | Tipo | Restrição | Descrição |
 |---|---|---|---|
 | `id` | UUID | PK | Identificador único |
+| `tenant_id` | UUID | FK → tenants.id, NOT NULL | Tenant proprietário |
 | `projeto_id` | UUID | FK → projetos.id, NOT NULL | Projeto pai |
 | `sprint_id` | UUID | FK → sprints.id, NULL | Sprint associada |
 | `responsavel_id` | UUID | FK → colaboradores.id, NULL | Responsável pela tarefa |
@@ -1047,6 +1014,7 @@ O SGPI é uma plataforma **multi-tenant** para gestão do ciclo completo de inov
 | Coluna | Tipo | Restrição | Descrição |
 |---|---|---|---|
 | `id` | UUID | PK | Identificador único |
+| `tenant_id` | UUID | FK → tenants.id, NOT NULL | Tenant proprietário |
 | `usuario_id` | UUID | FK → usuarios.id, NOT NULL | Destinatário |
 | `tipo` | VARCHAR(40) | NOT NULL | Enum: tipo de notificação |
 | `categoria` | VARCHAR(15) | NOT NULL | Enum: `demanda`, `projeto`, `tarefa`, `sistema` |
@@ -1061,42 +1029,73 @@ O SGPI é uma plataforma **multi-tenant** para gestão do ciclo completo de inov
 
 ---
 
-## 11. Diagrama de Relacionamentos (ERD textual)
+## 11. Domínio: Auditoria
+
+### Tabela: `logs_auditoria` *(auditoria unificada de acesso e ações)*
+
+> Registra toda ação realizada por um usuário autenticado no sistema: listagens, visualizações, criações, edições e exclusões. Centraliza rastreabilidade de permissões, diff de dados e metadados de sessão (IP, dispositivo, user-agent), atendendo ao RNF04 (Auditabilidade).
+
+| Coluna | Tipo | Restrição | Descrição |
+|---|---|---|---|
+| `id` | UUID | PK | Identificador único |
+| `tenant_id` | UUID | FK → tenants.id, NOT NULL | Tenant proprietário |
+| `usuario_id` | UUID | FK → usuarios.id, NULL | Usuário que executou a ação (NULL = ação de sistema) |
+| `entidade_tipo` | VARCHAR(50) | NOT NULL | Tipo da entidade afetada (ex: `demanda`, `projeto`, `colaborador`, `usuario`, `produto`) |
+| `entidade_id` | UUID | NULL | ID da entidade afetada (NULL para ações de listagem sem item específico) |
+| `acao` | VARCHAR(30) | NOT NULL | Enum: `listagem`, `visualizacao`, `criacao`, `edicao`, `exclusao` |
+| `permissao_verificada` | VARCHAR(100) | NULL | Permissão checada no momento da ação (ex: `demanda.editar`, `projeto.excluir`) |
+| `dados_anteriores` | JSONB | NULL | Snapshot dos campos **antes** da mudança (preenchido em `edicao` e `exclusao`) |
+| `dados_novos` | JSONB | NULL | Snapshot dos campos **após** a mudança (preenchido em `criacao` e `edicao`) |
+| `ip` | VARCHAR(45) | NOT NULL | Endereço IP do cliente (suporta IPv4 e IPv6) |
+| `user_agent` | TEXT | NULL | User-Agent completo do cliente |
+| `dispositivo` | VARCHAR(10) | NULL | Enum: `web`, `mobile`, `api` |
+| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | Data e hora da ação |
+
+> **Índices sugeridos:** (`tenant_id`), (`tenant_id`, `usuario_id`), (`tenant_id`, `entidade_tipo`, `entidade_id`), (`acao`), (`created_at`)
+>
+> **Retenção:** registros podem ser arquivados após período definido por política de auditoria (ex: 12 meses).
+
+---
+
+## 12. Diagrama de Relacionamentos (ERD textual)
 
 ```
 tenants
-  └──< empresas (tenant_id)
+  ├──< empresas (tenant_id)
   │      └──< usuario_empresas (empresa_id)
   │      └──< vinculos_empregaticio (empresa_id)
-  │      └──< demandas (empresa_unidade_apoio_id)
-  │      └──< projetos (empresa_dona_id)
-  │      └──< produtos (empresa_dona_id)
   │      └──< kanban_empresa_config (empresa_id) [1:1]
   │      └──< formularios_empresa (empresa_id)
-  └──< comites (tenant_id)
+  │      └──< setores (empresa_id)
+  ├──< comites (tenant_id)
+  ├──< colaboradores (tenant_id)           ← tenant direto
+  ├──< clientes (tenant_id)                ← tenant direto (cobre externos sem empresa_id)
+  ├──< demandas (tenant_id)                ← tenant direto
+  ├──< projetos (tenant_id)                ← tenant direto
+  ├──< tarefas (tenant_id)                 ← tenant direto
+  ├──< notificacoes (tenant_id)            ← tenant direto
+  └──< logs_auditoria (tenant_id)          ← tenant direto
 
-setores
+setores   ← (empresa_id → empresas → tenant_id → tenants)
   └──< colaborador_setores (setor_id)
 
 usuarios
   ├──< usuario_empresas (usuario_id)
   ├──< demandas (solicitante_id)
   ├──< historico_etapas (usuario_id)
-  ├──< log_demandas (usuario_id)
-  ├──< log_projetos (usuario_id)
   ├──< comite_membros (usuario_id)
   ├──< votos_comite (membro_id)
   ├──< respostas_avaliacao (avaliador_id)
   ├──< comentarios_tarefa (autor_id)
   ├──< registros_horas (aprovador_id)
-  └──< notificacoes (usuario_id)
+  ├──< notificacoes (usuario_id)
+  └──< logs_auditoria (usuario_id)
 
 colaboradores
   ├──< vinculos_empregaticio (colaborador_id)    ← substitui colaborador_empresas
   ├──< colaborador_setores (colaborador_id)
   ├──< colaborador_especialidades (colaborador_id)
   │      └──< colaborador_especialidade_tecnologias (especialidade_id)
-  │      └──< colaborador_especialidade_tecnologias_custom (especialidade_id)
   ├──< alocacoes (colaborador_id)
   ├──< registros_horas (colaborador_id)
   ├──< marcos_projeto (responsavel_id)
@@ -1112,7 +1111,6 @@ demandas
   ├──< demanda_clientes (demanda_id)
   ├──< anexos_demanda (demanda_id)
   ├──< historico_etapas (demanda_id)
-  ├──< log_demandas (demanda_id)              ← novo
   ├──< votos_comite (demanda_id)
   ├──< respostas_avaliacao (demanda_id)
   └──> projetos (projeto_id) [quando convertida]
@@ -1128,7 +1126,6 @@ criterios_avaliacao
 
 projetos
   ├──< projeto_clientes (projeto_id)
-  ├──< log_projetos (projeto_id)              ← novo
   ├──< squads (projeto_id)
   │      └──< alocacoes (squad_id)
   ├──< sprints (projeto_id)
@@ -1173,7 +1170,7 @@ kanban_empresa_config
 
 ---
 
-## 12. Enums Centralizados
+## 13. Enums Centralizados
 
 ### Usuários
 
@@ -1254,7 +1251,7 @@ kanban_empresa_config
 
 ---
 
-## 13. Decisões de Design Documentadas
+## 14. Decisões de Design Documentadas
 
 | Decisão | Escolha | Justificativa |
 |---|---|---|
@@ -1264,7 +1261,7 @@ kanban_empresa_config
 | **Respostas de formulário** | `JSONB` em `demandas.dados_customizados` | Os campos variam por empresa e mudam ao longo do tempo. Não faz sentido criar tabela relacional cujo schema é dinâmico. |
 | **Tecnologias de especialidade** | Tabela relacional | Diferente de tags, tecnologias são consultadas no matchmaking ("buscar React devs"). JSONField tornaria essas queries impossíveis ou lentas. |
 | **Multi-tenancy** | Tabela `tenants` com FK em `empresas` | Isolamento total por tenant com acesso controlado por usuário por empresa. |
-| **Auditoria** | `log_demandas` e `log_projetos` separados | Logs são append-only e de volume alto; manter separados das entidades principais evita degradação de performance nas queries transacionais. |
+| **Auditoria** | `logs_auditoria` unificado | Tabela polimórfica append-only que cobre qualquer entidade do sistema via `entidade_tipo` + `entidade_id`. Centraliza rastreabilidade de permissões, diff de dados e metadados de sessão, evitando proliferação de tabelas de log por domínio. |
 | **Opções de formulário** | Tabela `campo_formulario_opcoes` | Diferente de tags, as opções precisam ser gerenciadas individualmente (CRUD), o que torna o JSONField inadequado. |
 
 ---

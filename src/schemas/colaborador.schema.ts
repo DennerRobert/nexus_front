@@ -147,9 +147,9 @@ export const colaboradorSchema = z.object({
     .min(20, "A carga horária mínima é 20h/mês")
     .max(220, "A carga horária máxima é 220h/mês"),
 
-  ativo: z.boolean().default(true),
+  ativo: z.boolean(),
 
-  dataAdmissao: z.coerce.date(),
+  dataAdmissao: z.date(),
 });
 
 export type EspecialidadeColaboradorSchemaType = z.infer<typeof especialidadeColaboradorSchema>;

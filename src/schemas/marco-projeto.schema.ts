@@ -24,11 +24,11 @@ export const marcoProjetoSchema = z.object({
     .max(1000, "A descrição deve ter no máximo 1000 caracteres")
     .optional(),
 
-  data: z.coerce.date(),
+  data: z.date(),
 
   responsavelId: z.string().uuid().optional(),
 
-  icone: iconeMarcoEnum.default("flag"),
+  icone: iconeMarcoEnum,
 });
 
 export type MarcoProjetoSchemaType = z.infer<typeof marcoProjetoSchema>;

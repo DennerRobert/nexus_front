@@ -25,7 +25,7 @@ import {
   TECNOLOGIA_LABELS,
 } from "@/interfaces/colaborador.interface";
 import { PAPEL_ALOCACAO_LABELS, STATUS_ALOCACAO_LABELS } from "@/interfaces/alocacao.interface";
-import { formatCurrency, formatDate, formatPercent } from "@/utils/formatters";
+import { formatCurrency, formatDate, formatPercent, coerceDate } from "@/utils/formatters";
 import {
   ArrowLeft,
   Save,

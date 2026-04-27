@@ -13,6 +13,7 @@ import { Select } from "@/components/ui/Select";
 import { useDemandaStore } from "@/stores/demanda.store";
 import { useAuth } from "@/hooks/useAuth";
 import { demandaSchema, type DemandaSchemaType } from "@/schemas/demanda.schema";
+import { coerceDate } from "@/utils/formatters";
 import { ArrowLeft, Send, Info } from "lucide-react";
 
 interface FormOperacionalProps {
@@ -61,6 +62,7 @@ export const FormOperacional = ({ empresaId, empresaNome, redirectTo }: FormOper
       {
         ...data,
         empresaUnidadeApoioId: empresaId,
+        clienteIds: data.clienteIds ?? [],
         prazoDesejado: new Date(data.prazoDesejado),
         exibirVitrine: false,
       },
@@ -185,7 +187,7 @@ export const FormOperacional = ({ empresaId, empresaNome, redirectTo }: FormOper
             label="Prazo desejado para entrega"
             type="date"
             error={errors.prazoDesejado?.message}
-            {...register("prazoDesejado")}
+            {...register("prazoDesejado", { setValueAs: coerceDate })}
           />
         </CardContent>
       </Card>

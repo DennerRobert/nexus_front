@@ -22,7 +22,7 @@ export const empresaSchema = z.object({
     .max(500, "A descrição deve ter no máximo 500 caracteres")
     .optional(),
 
-  ativa: z.boolean().default(true),
+  ativa: z.boolean(),
 
   formularioTipo: z
     .enum(["inovacao", "operacional", "estrategico"])

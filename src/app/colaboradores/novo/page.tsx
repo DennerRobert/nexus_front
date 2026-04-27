@@ -16,6 +16,7 @@ import { colaboradorSchema, type ColaboradorSchemaType } from "@/schemas/colabor
 import { ArrowLeft, Save, Building2, Layers } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/utils/cn";
+import { coerceDate } from "@/utils/formatters";
 
 const NovoColaboradorPage = () => {
   const router = useRouter();
@@ -126,7 +127,7 @@ const NovoColaboradorPage = () => {
                 label="Data de Admissão"
                 type="date"
                 error={errors.dataAdmissao?.message}
-                {...register("dataAdmissao")}
+                {...register("dataAdmissao", { setValueAs: coerceDate })}
               />
             </div>
           </CardContent>

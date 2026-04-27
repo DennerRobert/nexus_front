@@ -19,6 +19,7 @@ import { useEmpresaStore } from "@/stores/empresa.store";
 import { useAnexoDemandaStore } from "@/stores/anexo-demanda.store";
 import { useAuth } from "@/hooks/useAuth";
 import { demandaSchema, type DemandaSchemaType } from "@/schemas/demanda.schema";
+import { coerceDate } from "@/utils/formatters";
 import type { AnexoDemanda } from "@/interfaces/anexo-demanda.interface";
 import {
   ESTAGIO_IDEIA_LABELS,
@@ -88,6 +89,7 @@ const NovaDemandaPage = () => {
     const demanda = await create(
       {
         ...data,
+        clienteIds: data.clienteIds ?? [],
         prazoDesejado: new Date(data.prazoDesejado),
         exibirVitrine: data.exibirVitrine ?? true,
       },
@@ -316,7 +318,7 @@ const NovaDemandaPage = () => {
                 label="Prazo Desejado para Início"
                 type="date"
                 error={errors.prazoDesejado?.message}
-                {...register("prazoDesejado")}
+                {...register("prazoDesejado", { setValueAs: coerceDate })}
               />
             </div>
           </CardContent>
