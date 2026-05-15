@@ -19,6 +19,7 @@ import { useEmpresaStore } from "@/stores/empresa.store";
 import { useAnexoDemandaStore } from "@/stores/anexo-demanda.store";
 import { useAuth } from "@/hooks/useAuth";
 import { demandaSchema, type DemandaSchemaType } from "@/schemas/demanda.schema";
+import { coerceDate } from "@/utils/formatters";
 import type { AnexoDemanda } from "@/interfaces/anexo-demanda.interface";
 import {
   ESTAGIO_IDEIA_LABELS,
@@ -84,41 +85,42 @@ const NovaDemandaPage = () => {
     setValue("clienteIds", updated);
   };
 
-  const handleFormSubmit = (data: DemandaSchemaType) => {
-    try {
-      const demanda = create(
-        {
-          ...data,
-          prazoDesejado: new Date(data.prazoDesejado),
-          exibirVitrine: data.exibirVitrine ?? true,
-        },
-        usuarioId || "demo-user-id"
-      );
-      
-      // Enviar para análise automaticamente
-      updateStatus(demanda.id, "em_analise");
-      
-      toast.success("Ideia de inovação submetida com sucesso!", {
-        description: "Você será notificado sobre o progresso da avaliação.",
-      });
-      router.push(`/demandas/${demanda.id}`);
-    } catch {
-      toast.error("Erro ao submeter ideia");
+  const handleFormSubmit = async (data: DemandaSchemaType) => {
+    const demanda = await create(
+      {
+        ...data,
+        clienteIds: data.clienteIds ?? [],
+        prazoDesejado: new Date(data.prazoDesejado),
+        exibirVitrine: data.exibirVitrine ?? true,
+      },
+      usuarioId || "demo-user-id",
+    );
+
+    if (!demanda) {
+      toast.error("Erro ao submeter ideia. Tente novamente.");
+      return;
     }
+
+    updateStatus(demanda.id, "em_analise");
+
+    toast.success("Ideia de inovação submetida com sucesso!", {
+      description: "Você será notificado sobre o progresso da avaliação.",
+    });
+    router.push(`/demandas/${demanda.id}`);
   };
 
   return (
     <Layout
       title="Submissão de Ideias de Inovação"
       subtitle="Cadastre uma nova ideia ou oportunidade de inovação"
-      actions={
+    >
+      <div className="mb-6">
         <Link href="/demandas">
-          <Button variant="outline" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+          <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
             Voltar
           </Button>
         </Link>
-      }
-    >
+      </div>
       <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
         {/* Identificação do Proponente */}
         <Card>
@@ -316,7 +318,7 @@ const NovaDemandaPage = () => {
                 label="Prazo Desejado para Início"
                 type="date"
                 error={errors.prazoDesejado?.message}
-                {...register("prazoDesejado")}
+                {...register("prazoDesejado", { setValueAs: coerceDate })}
               />
             </div>
           </CardContent>

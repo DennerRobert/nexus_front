@@ -10,11 +10,11 @@ import { Layout } from "@/components/Layout";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
 import { Badge } from "@/components/ui/Badge";
 import { EspecialidadeSelector } from "@/components/EspecialidadeSelector";
 import { useColaboradorStore } from "@/stores/colaborador.store";
 import { useEmpresaStore } from "@/stores/empresa.store";
+import { useSetorStore } from "@/stores/setor.store";
 import { useAlocacaoStore } from "@/stores/alocacao.store";
 import { useSquadStore } from "@/stores/squad.store";
 import { colaboradorSchema, type ColaboradorSchemaType } from "@/schemas/colaborador.schema";
@@ -25,8 +25,19 @@ import {
   TECNOLOGIA_LABELS,
 } from "@/interfaces/colaborador.interface";
 import { PAPEL_ALOCACAO_LABELS, STATUS_ALOCACAO_LABELS } from "@/interfaces/alocacao.interface";
-import { formatCurrency, formatDate, formatPercent } from "@/utils/formatters";
-import { ArrowLeft, Save, Edit, User, Briefcase, Building2, Code } from "lucide-react";
+import { formatCurrency, formatDate, formatPercent, coerceDate } from "@/utils/formatters";
+import {
+  ArrowLeft,
+  Save,
+  Edit,
+  User,
+  Briefcase,
+  Building2,
+  Code,
+  Layers,
+  Star,
+} from "lucide-react";
+import { cn } from "@/utils/cn";
 
 interface ColaboradorDetailPageProps {
   params: Promise<{ id: string }>;
@@ -40,21 +51,23 @@ const ColaboradorDetailPage = ({ params }: ColaboradorDetailPageProps) => {
 
   const { getById, update, getOcupacao, getDisponibilidade } = useColaboradorStore();
   const { getAll: getEmpresas, getById: getEmpresa } = useEmpresaStore();
+  const { getAtivos: getSetores, getById: getSetor } = useSetorStore();
   const { getByColaborador } = useAlocacaoStore();
   const { getById: getSquad } = useSquadStore();
 
   const colaborador = getById(id);
   const empresas = getEmpresas();
+  const setores = getSetores();
   const alocacoes = getByColaborador(id);
   const ocupacao = getOcupacao(id);
   const disponibilidade = getDisponibilidade(id);
-
-  const empresa = colaborador ? getEmpresa(colaborador.empresaId) : null;
 
   const {
     register,
     handleSubmit,
     control,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ColaboradorSchemaType>({
     resolver: zodResolver(colaboradorSchema),
@@ -66,17 +79,38 @@ const ColaboradorDetailPage = ({ params }: ColaboradorDetailPageProps) => {
       : undefined,
   });
 
-  const handleFormSubmit = (data: ColaboradorSchemaType) => {
-    try {
-      update(id, {
-        ...data,
-        dataAdmissao: new Date(data.dataAdmissao),
-      });
-      toast.success("Colaborador atualizado com sucesso!");
-      router.push(`/colaboradores/${id}`);
-    } catch {
-      toast.error("Erro ao atualizar colaborador");
+  const watchedEmpresaIds = watch("empresaIds") || [];
+  const watchedSetorIds = watch("setorIds") || [];
+
+  const handleToggleEmpresa = (empresaId: string) => {
+    const current = watchedEmpresaIds;
+    const updated = current.includes(empresaId)
+      ? current.filter((eid) => eid !== empresaId)
+      : [...current, empresaId];
+    setValue("empresaIds", updated, { shouldValidate: true });
+  };
+
+  const handleToggleSetor = (setorId: string) => {
+    const current = watchedSetorIds;
+    const updated = current.includes(setorId)
+      ? current.filter((sid) => sid !== setorId)
+      : [...current, setorId];
+    setValue("setorIds", updated);
+  };
+
+  const handleFormSubmit = async (data: ColaboradorSchemaType) => {
+    const result = await update(id, {
+      ...data,
+      dataAdmissao: new Date(data.dataAdmissao),
+    });
+
+    if (!result) {
+      toast.error("Erro ao atualizar colaborador. Tente novamente.");
+      return;
     }
+
+    toast.success("Colaborador atualizado com sucesso!");
+    router.push(`/colaboradores/${id}`);
   };
 
   const alocacoesComSquad = useMemo(() => {
@@ -104,14 +138,14 @@ const ColaboradorDetailPage = ({ params }: ColaboradorDetailPageProps) => {
       <Layout
         title={`Editar: ${colaborador.nome}`}
         subtitle="Atualizar informações do colaborador"
-        actions={
+      >
+        <div className="mb-6 flex justify-start">
           <Link href={`/colaboradores/${id}`}>
-            <Button variant="outline" leftIcon={<ArrowLeft className="h-4 w-4" />}>
-              Cancelar
+            <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+              Cancelar edição
             </Button>
           </Link>
-        }
-      >
+        </div>
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
           <Card>
             <CardHeader>
@@ -135,17 +169,82 @@ const ColaboradorDetailPage = ({ params }: ColaboradorDetailPageProps) => {
                   error={errors.matricula?.message}
                   {...register("matricula")}
                 />
-                <Select
-                  label="Empresa"
-                  options={empresas.map((e) => ({ value: e.id, label: e.nome }))}
-                  error={errors.empresaId?.message}
-                  {...register("empresaId")}
-                />
                 <Input
                   label="Cargo"
                   error={errors.cargo?.message}
                   {...register("cargo")}
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Empresas — N para N */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Empresas
+                <span className="text-sm font-normal text-slate-400">(pode pertencer a várias)</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {empresas.map((empresa) => {
+                  const isSelected = watchedEmpresaIds.includes(empresa.id);
+                  return (
+                    <button
+                      key={empresa.id}
+                      type="button"
+                      onClick={() => handleToggleEmpresa(empresa.id)}
+                      className={cn(
+                        "rounded-lg border px-4 py-2 text-sm font-medium transition-all",
+                        isSelected
+                          ? "border-cyan-500 bg-cyan-500/20 text-cyan-300"
+                          : "border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-300"
+                      )}
+                      aria-pressed={isSelected}
+                    >
+                      {empresa.nome}
+                    </button>
+                  );
+                })}
+              </div>
+              {errors.empresaIds && (
+                <p className="mt-2 text-sm text-red-400">{errors.empresaIds.message}</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Setores — N para N */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Layers className="h-5 w-5" />
+                Setores
+                <span className="text-sm font-normal text-slate-400">(pode pertencer a vários)</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {setores.map((setor) => {
+                  const isSelected = watchedSetorIds.includes(setor.id);
+                  return (
+                    <button
+                      key={setor.id}
+                      type="button"
+                      onClick={() => handleToggleSetor(setor.id)}
+                      className={cn(
+                        "rounded-lg border px-4 py-2 text-sm font-medium transition-all",
+                        isSelected
+                          ? "border-violet-500 bg-violet-500/20 text-violet-300"
+                          : "border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-300"
+                      )}
+                      aria-pressed={isSelected}
+                    >
+                      {setor.nome}
+                    </button>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -211,23 +310,30 @@ const ColaboradorDetailPage = ({ params }: ColaboradorDetailPageProps) => {
     );
   }
 
+  const empresasDoColaborador = (colaborador.empresaIds || [])
+    .map((eid) => getEmpresa(eid))
+    .filter(Boolean);
+
+  const setoresDoColaborador = (colaborador.setorIds || [])
+    .map((sid) => getSetor(sid))
+    .filter(Boolean);
+
   return (
     <Layout
       title={colaborador.nome}
       subtitle={colaborador.cargo}
-      actions={
-        <div className="flex gap-2">
-          <Link href="/colaboradores">
-            <Button variant="outline" leftIcon={<ArrowLeft className="h-4 w-4" />}>
-              Voltar
-            </Button>
-          </Link>
-          <Link href={`/colaboradores/${id}?edit=true`}>
-            <Button leftIcon={<Edit className="h-4 w-4" />}>Editar</Button>
-          </Link>
-        </div>
-      }
     >
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <Link href="/colaboradores">
+          <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+            Voltar para Colaboradores
+          </Button>
+        </Link>
+        <Link href={`/colaboradores/${id}?edit=true`}>
+          <Button size="sm" leftIcon={<Edit className="h-4 w-4" />}>Editar</Button>
+        </Link>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           <Card>
@@ -257,22 +363,67 @@ const ColaboradorDetailPage = ({ params }: ColaboradorDetailPageProps) => {
             </CardContent>
           </Card>
 
+          {/* Empresas */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="h-5 w-5" />
-                Empresa
+                Empresas
               </CardTitle>
+              <CardDescription>
+                {empresasDoColaborador.length} empresa(s) vinculada(s)
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-lg font-medium text-slate-100">
-                {empresa?.nome || "Não definida"}
-              </p>
-              {empresa?.descricao && (
-                <p className="mt-1 text-sm text-slate-400">{empresa.descricao}</p>
+              {empresasDoColaborador.length === 0 ? (
+                <p className="text-slate-500">Nenhuma empresa vinculada</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {empresasDoColaborador.map((empresa) => (
+                    <div
+                      key={empresa!.id}
+                      className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2"
+                    >
+                      <p className="font-medium text-cyan-300">{empresa!.nome}</p>
+                      {empresa!.setor && (
+                        <p className="text-xs text-slate-400">{empresa!.setor}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
+
+          {/* Setores */}
+          {setoresDoColaborador.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Layers className="h-5 w-5" />
+                  Setores
+                </CardTitle>
+                <CardDescription>
+                  {setoresDoColaborador.length} setor(es) vinculado(s)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {setoresDoColaborador.map((setor) => (
+                    <div
+                      key={setor!.id}
+                      className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2"
+                    >
+                      <p className="font-medium text-violet-300">{setor!.nome}</p>
+                      {setor!.descricao && (
+                        <p className="text-xs text-slate-400">{setor!.descricao}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -299,24 +450,44 @@ const ColaboradorDetailPage = ({ params }: ColaboradorDetailPageProps) => {
                         {SENIORIDADE_LABELS[esp.senioridade]}
                       </Badge>
                     </div>
-                    <div className="flex flex-wrap gap-1">
-                      {esp.tecnologias.map((tech) => (
-                        <span
-                          key={tech}
-                          className="rounded bg-slate-700/50 px-2 py-0.5 text-xs text-slate-300"
-                        >
-                          {TECNOLOGIA_LABELS[tech]}
-                        </span>
-                      ))}
-                      {esp.tecnologiasCustom?.map((tech) => (
-                        <span
-                          key={tech}
-                          className="rounded bg-cyan-500/20 px-2 py-0.5 text-xs text-cyan-400"
-                        >
-                          {tech}
-                        </span>
-                      ))}
+
+                    {/* Framework Principal */}
+                    <div className="mb-3">
+                      <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-amber-400">
+                        <Star className="h-3 w-3" />
+                        Framework Principal
+                      </p>
+                      <span className="rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-xs font-medium text-amber-300">
+                        {TECNOLOGIA_LABELS[esp.frameworkPrincipal]}
+                      </span>
                     </div>
+
+                    {/* Tecnologias em Geral */}
+                    {(esp.tecnologias.length > 0 || (esp.tecnologiasCustom && esp.tecnologiasCustom.length > 0)) && (
+                      <div>
+                        <p className="mb-1.5 text-xs font-medium text-slate-400">
+                          Tecnologias em Geral
+                        </p>
+                        <div className="flex flex-wrap gap-1">
+                          {esp.tecnologias.map((tech) => (
+                            <span
+                              key={tech}
+                              className="rounded bg-slate-700/50 px-2 py-0.5 text-xs text-slate-300"
+                            >
+                              {TECNOLOGIA_LABELS[tech]}
+                            </span>
+                          ))}
+                          {esp.tecnologiasCustom?.map((tech) => (
+                            <span
+                              key={tech}
+                              className="rounded bg-cyan-500/20 px-2 py-0.5 text-xs text-cyan-400"
+                            >
+                              {tech}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -421,9 +592,14 @@ const ColaboradorDetailPage = ({ params }: ColaboradorDetailPageProps) => {
                     key={index}
                     className="flex items-center justify-between text-sm"
                   >
-                    <span className="text-slate-300">
-                      {AREA_ESPECIALIDADE_LABELS[esp.area]}
-                    </span>
+                    <div>
+                      <span className="text-slate-300">
+                        {AREA_ESPECIALIDADE_LABELS[esp.area]}
+                      </span>
+                      <p className="text-xs text-amber-400/70">
+                        {TECNOLOGIA_LABELS[esp.frameworkPrincipal]}
+                      </p>
+                    </div>
                     <Badge variant="primary" className="text-xs">
                       {SENIORIDADE_ABREV[esp.senioridade]}
                     </Badge>

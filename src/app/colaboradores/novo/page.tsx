@@ -8,24 +8,30 @@ import { Layout } from "@/components/Layout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
 import { EspecialidadeSelector } from "@/components/EspecialidadeSelector";
 import { useColaboradorStore } from "@/stores/colaborador.store";
 import { useEmpresaStore } from "@/stores/empresa.store";
+import { useSetorStore } from "@/stores/setor.store";
 import { colaboradorSchema, type ColaboradorSchemaType } from "@/schemas/colaborador.schema";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Building2, Layers } from "lucide-react";
 import Link from "next/link";
+import { cn } from "@/utils/cn";
+import { coerceDate } from "@/utils/formatters";
 
 const NovoColaboradorPage = () => {
   const router = useRouter();
   const { create } = useColaboradorStore();
   const { getAll: getEmpresas } = useEmpresaStore();
+  const { getAtivos: getSetores } = useSetorStore();
   const empresas = getEmpresas();
+  const setores = getSetores();
 
   const {
     register,
     handleSubmit,
     control,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ColaboradorSchemaType>({
     resolver: zodResolver(colaboradorSchema),
@@ -34,34 +40,57 @@ const NovoColaboradorPage = () => {
       cargaHorariaMensal: 160,
       especialidades: [],
       dataAdmissao: new Date(),
+      empresaIds: [],
+      setorIds: [],
     },
   });
 
-  const handleFormSubmit = (data: ColaboradorSchemaType) => {
-    try {
-      create({
-        ...data,
-        dataAdmissao: new Date(data.dataAdmissao),
-      });
-      toast.success("Colaborador criado com sucesso!");
-      router.push("/colaboradores");
-    } catch {
-      toast.error("Erro ao criar colaborador");
+  const watchedEmpresaIds = watch("empresaIds") || [];
+  const watchedSetorIds = watch("setorIds") || [];
+
+  const handleToggleEmpresa = (empresaId: string) => {
+    const current = watchedEmpresaIds;
+    const updated = current.includes(empresaId)
+      ? current.filter((id) => id !== empresaId)
+      : [...current, empresaId];
+    setValue("empresaIds", updated, { shouldValidate: true });
+  };
+
+  const handleToggleSetor = (setorId: string) => {
+    const current = watchedSetorIds;
+    const updated = current.includes(setorId)
+      ? current.filter((id) => id !== setorId)
+      : [...current, setorId];
+    setValue("setorIds", updated);
+  };
+
+  const handleFormSubmit = async (data: ColaboradorSchemaType) => {
+    const result = await create({
+      ...data,
+      dataAdmissao: new Date(data.dataAdmissao),
+    });
+
+    if (!result) {
+      toast.error("Erro ao criar colaborador. Tente novamente.");
+      return;
     }
+
+    toast.success("Colaborador criado com sucesso!");
+    router.push("/colaboradores");
   };
 
   return (
     <Layout
       title="Novo Colaborador"
       subtitle="Cadastrar um novo profissional"
-      actions={
+    >
+      <div className="mb-6">
         <Link href="/colaboradores">
-          <Button variant="outline" leftIcon={<ArrowLeft className="h-4 w-4" />}>
-            Voltar
+          <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+            Voltar para Colaboradores
           </Button>
         </Link>
-      }
-    >
+      </div>
       <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
         <Card>
           <CardHeader>
@@ -88,13 +117,6 @@ const NovoColaboradorPage = () => {
                 error={errors.matricula?.message}
                 {...register("matricula")}
               />
-              <Select
-                label="Empresa"
-                placeholder="Selecione a empresa"
-                options={empresas.map((e) => ({ value: e.id, label: e.nome }))}
-                error={errors.empresaId?.message}
-                {...register("empresaId")}
-              />
               <Input
                 label="Cargo"
                 placeholder="Ex: Desenvolvedor Backend"
@@ -105,8 +127,79 @@ const NovoColaboradorPage = () => {
                 label="Data de Admissão"
                 type="date"
                 error={errors.dataAdmissao?.message}
-                {...register("dataAdmissao")}
+                {...register("dataAdmissao", { setValueAs: coerceDate })}
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Empresas — N para N */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Empresas
+              <span className="text-sm font-normal text-slate-400">(pode pertencer a várias)</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {empresas.map((empresa) => {
+                const isSelected = watchedEmpresaIds.includes(empresa.id);
+                return (
+                  <button
+                    key={empresa.id}
+                    type="button"
+                    onClick={() => handleToggleEmpresa(empresa.id)}
+                    className={cn(
+                      "rounded-lg border px-4 py-2 text-sm font-medium transition-all",
+                      isSelected
+                        ? "border-cyan-500 bg-cyan-500/20 text-cyan-300"
+                        : "border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-300"
+                    )}
+                    aria-pressed={isSelected}
+                  >
+                    {empresa.nome}
+                  </button>
+                );
+              })}
+            </div>
+            {errors.empresaIds && (
+              <p className="mt-2 text-sm text-red-400">{errors.empresaIds.message}</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Setores — N para N */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Layers className="h-5 w-5" />
+              Setores
+              <span className="text-sm font-normal text-slate-400">(pode pertencer a vários)</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {setores.map((setor) => {
+                const isSelected = watchedSetorIds.includes(setor.id);
+                return (
+                  <button
+                    key={setor.id}
+                    type="button"
+                    onClick={() => handleToggleSetor(setor.id)}
+                    className={cn(
+                      "rounded-lg border px-4 py-2 text-sm font-medium transition-all",
+                      isSelected
+                        ? "border-violet-500 bg-violet-500/20 text-violet-300"
+                        : "border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-300"
+                    )}
+                    aria-pressed={isSelected}
+                  >
+                    {setor.nome}
+                  </button>
+                );
+              })}
             </div>
           </CardContent>
         </Card>

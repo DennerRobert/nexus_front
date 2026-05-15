@@ -83,16 +83,15 @@ export const demandaSchema = z
     // Campo de cliente agora é opcional
     clienteIds: z
       .array(z.string())
-      .optional()
-      .default([]),
+      .optional(),
 
-    prazoDesejado: z.coerce.date().refine(
+    prazoDesejado: z.date().refine(
       (date) => date > new Date(),
       "O prazo deve ser uma data futura"
     ),
 
     // Novo campo: exibir na vitrine de ideias
-    exibirVitrine: z.boolean().optional().default(true),
+    exibirVitrine: z.boolean().optional(),
   })
   .refine(
     (data) => {

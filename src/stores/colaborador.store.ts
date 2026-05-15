@@ -1,11 +1,31 @@
 import { create } from "zustand";
-import { v4 as uuidv4 } from "uuid";
-import type { Colaborador, ColaboradorFormData, ColaboradorComOcupacao } from "@/interfaces/colaborador.interface";
-import { mockColaboradores, mockAlocacoes } from "@/utils/mock-data";
+import type {
+  Colaborador,
+  ColaboradorFormData,
+  ColaboradorComOcupacao,
+} from "@/interfaces/colaborador.interface";
+import type { Alocacao } from "@/interfaces/alocacao.interface";
+import { colaboradorService } from "@/services/colaborador.service";
+import { deserialize, deserializeList } from "@/lib/deserialize";
+import { ApiError } from "@/lib/api-client";
+
+const toError = (err: unknown): string =>
+  err instanceof ApiError ? err.message : "Erro inesperado. Tente novamente.";
+
+/**
+ * Retorna as alocações da store de alocações sem criar dependência circular.
+ * O require dinâmico é avaliado em tempo de execução (não em tempo de importação).
+ */
+const getAlocacoes = (): Alocacao[] => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { useAlocacaoStore } = require("@/stores/alocacao.store");
+  return (useAlocacaoStore.getState().alocacoes as Alocacao[]) ?? [];
+};
 
 interface ColaboradorState {
   colaboradores: Colaborador[];
   isLoading: boolean;
+  error: string | null;
 }
 
 interface ColaboradorActions {
@@ -15,92 +35,106 @@ interface ColaboradorActions {
   getComOcupacao: () => ColaboradorComOcupacao[];
   getOcupacao: (colaboradorId: string) => number;
   getDisponibilidade: (colaboradorId: string) => number;
-  create: (data: ColaboradorFormData) => Colaborador;
-  update: (id: string, data: Partial<ColaboradorFormData>) => Colaborador | undefined;
-  remove: (id: string) => boolean;
-  setLoading: (loading: boolean) => void;
+  fetchAll: () => Promise<void>;
+  create: (data: ColaboradorFormData) => Promise<Colaborador | undefined>;
+  update: (id: string, data: Partial<ColaboradorFormData>) => Promise<Colaborador | undefined>;
+  remove: (id: string) => Promise<boolean>;
 }
 
 type ColaboradorStore = ColaboradorState & ColaboradorActions;
 
 export const useColaboradorStore = create<ColaboradorStore>((set, get) => ({
-  colaboradores: mockColaboradores,
+  colaboradores: [],
   isLoading: false,
+  error: null,
 
   getAll: () => get().colaboradores.filter((c) => c.ativo),
 
-  getById: (id: string) => get().colaboradores.find((c) => c.id === id),
+  getById: (id) => get().colaboradores.find((c) => c.id === id),
 
-  getByEmpresa: (empresaId: string) =>
-    get().colaboradores.filter((c) => c.empresaId === empresaId && c.ativo),
+  getByEmpresa: (empresaId) =>
+    get().colaboradores.filter((c) => c.empresaIds.includes(empresaId) && c.ativo),
 
-  getOcupacao: (colaboradorId: string) => {
-    const alocacoesAtivas = mockAlocacoes.filter(
-      (a) => a.colaboradorId === colaboradorId && a.status === "ativa"
-    );
-    return alocacoesAtivas.reduce((total, a) => total + a.percentual, 0);
+  getOcupacao: (colaboradorId) => {
+    const alocacoes = getAlocacoes();
+    return alocacoes
+      .filter((a) => a.colaboradorId === colaboradorId && a.status === "ativa")
+      .reduce((total, a) => total + a.percentual, 0);
   },
 
-  getDisponibilidade: (colaboradorId: string) => {
-    const ocupacao = get().getOcupacao(colaboradorId);
-    return Math.max(0, 100 - ocupacao);
-  },
+  getDisponibilidade: (colaboradorId) =>
+    Math.max(0, 100 - get().getOcupacao(colaboradorId)),
 
   getComOcupacao: () => {
+    const alocacoes = getAlocacoes();
     return get()
       .colaboradores.filter((c) => c.ativo)
       .map((colaborador) => {
-        const alocacoesAtivas = mockAlocacoes.filter(
-          (a) => a.colaboradorId === colaborador.id && a.status === "ativa"
+        const ativas = alocacoes.filter(
+          (a) => a.colaboradorId === colaborador.id && a.status === "ativa",
         );
-        const ocupacaoAtual = alocacoesAtivas.reduce((total, a) => total + a.percentual, 0);
+        const ocupacaoAtual = ativas.reduce((total, a) => total + a.percentual, 0);
         return {
           ...colaborador,
           ocupacaoAtual,
           disponibilidade: Math.max(0, 100 - ocupacaoAtual),
-          alocacoes: alocacoesAtivas.length,
+          alocacoes: ativas.length,
         };
       });
   },
 
-  create: (data: ColaboradorFormData) => {
-    const newColaborador: Colaborador = {
-      ...data,
-      id: uuidv4(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    set((state) => ({
-      colaboradores: [...state.colaboradores, newColaborador],
-    }));
-    return newColaborador;
+  fetchAll: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const data = await colaboradorService.getAll();
+      set({
+        colaboradores: deserializeList(data, ["dataAdmissao", "dataDemissao"]),
+        isLoading: false,
+      });
+    } catch (err) {
+      set({ error: toError(err), isLoading: false });
+    }
   },
 
-  update: (id: string, data: Partial<ColaboradorFormData>) => {
-    let updated: Colaborador | undefined;
-    set((state) => ({
-      colaboradores: state.colaboradores.map((c) => {
-        if (c.id === id) {
-          updated = { ...c, ...data, updatedAt: new Date() };
-          return updated;
-        }
-        return c;
-      }),
-    }));
-    return updated;
+  create: async (data) => {
+    try {
+      const novo = await colaboradorService.create(data);
+      const deserialized = deserialize(novo, ["dataAdmissao", "dataDemissao"]);
+      set((state) => ({ colaboradores: [...state.colaboradores, deserialized] }));
+      return deserialized;
+    } catch (err) {
+      set({ error: toError(err) });
+      return undefined;
+    }
   },
 
-  remove: (id: string) => {
-    const exists = get().colaboradores.some((c) => c.id === id);
-    if (exists) {
+  update: async (id, data) => {
+    try {
+      const updated = await colaboradorService.update(id, data);
+      const deserialized = deserialize(updated, ["dataAdmissao", "dataDemissao"]);
+      set((state) => ({
+        colaboradores: state.colaboradores.map((c) => (c.id === id ? deserialized : c)),
+      }));
+      return deserialized;
+    } catch (err) {
+      set({ error: toError(err) });
+      return undefined;
+    }
+  },
+
+  remove: async (id) => {
+    try {
+      await colaboradorService.remove(id);
+      // Soft-delete: marca como inativo localmente
       set((state) => ({
         colaboradores: state.colaboradores.map((c) =>
-          c.id === id ? { ...c, ativo: false, updatedAt: new Date() } : c
+          c.id === id ? { ...c, ativo: false, updatedAt: new Date() } : c,
         ),
       }));
+      return true;
+    } catch (err) {
+      set({ error: toError(err) });
+      return false;
     }
-    return exists;
   },
-
-  setLoading: (loading: boolean) => set({ isLoading: loading }),
 }));

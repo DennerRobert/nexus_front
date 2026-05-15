@@ -47,6 +47,7 @@ import type { Tarefa, StatusTarefa } from "@/interfaces/tarefa.interface";
 import { PRIORIDADE_TAREFA_LABELS } from "@/interfaces/tarefa.interface";
 import { ICONE_MARCO_LABELS } from "@/interfaces/marco-projeto.interface";
 import type { Demanda } from "@/interfaces/demanda.interface";
+import type { Cliente } from "@/interfaces/cliente.interface";
 import {
   ESTAGIO_IDEIA_LABELS,
   HORIZONTE_INOVACAO_LABELS,
@@ -54,7 +55,7 @@ import {
 } from "@/interfaces/demanda.interface";
 import { tarefaSchema, type TarefaSchemaType } from "@/schemas/tarefa.schema";
 import { marcoProjetoSchema, type MarcoProjetoSchemaType } from "@/schemas/marco-projeto.schema";
-import { formatDate, formatCurrency } from "@/utils/formatters";
+import { formatDate, formatCurrency, coerceDate } from "@/utils/formatters";
 import { cn } from "@/utils/cn";
 import {
   ArrowLeft,
@@ -133,15 +134,15 @@ const ProjetoDetailPage = ({ params }: ProjetoDetailPageProps) => {
 
   // Dados
   const projeto = getById(id);
-  const empresa = projeto ? getEmpresa(projeto.empresaDonaId) : null;
-  const squad = projeto ? getSquad(projeto.id) : null;
+  const empresa = projeto ? getEmpresa(projeto.empresaDonaId) : undefined;
+  const squad = projeto ? getSquad(projeto.id) : undefined;
   const alocacoes = squad ? getAtivasBySquad(squad.id) : [];
   const tarefas = getTarefas(id);
   const marcos = getMarcos(id);
   const horasProjeto = getHorasPorProjeto(id);
   const scoresProjeto = getScoresPorProjeto(id);
   const saudeProjeto = getSaudeProjeto(id);
-  const demanda = projeto?.demandaId ? getDemanda(projeto.demandaId) : null;
+  const demanda = projeto?.demandaId ? (getDemanda(projeto.demandaId) ?? null) : null;
 
   if (!projeto) {
     return (
@@ -156,7 +157,9 @@ const ProjetoDetailPage = ({ params }: ProjetoDetailPageProps) => {
     );
   }
 
-  const clientes = projeto.clienteIds.map((cId) => getCliente(cId)).filter(Boolean);
+  const clientes = projeto.clienteIds
+    .map((cId) => getCliente(cId))
+    .filter((c): c is Cliente => c !== undefined);
 
   // Handlers
   const handleAprovar = () => {
@@ -184,18 +187,22 @@ const ProjetoDetailPage = ({ params }: ProjetoDetailPageProps) => {
     toast.success("Projeto concluído!");
   };
 
-  const handleConverterEmProduto = () => {
+  const handleConverterEmProduto = async () => {
     if (!nomeProduto.trim()) {
       toast.error("Informe o nome do produto");
       return;
     }
-    const produto = criarDeProjeto(projeto, {
+    const produto = await criarDeProjeto(projeto, {
       nome: nomeProduto,
       descricao: projeto.descricao,
       classificacao,
     });
-    toast.success("Produto criado com sucesso!");
-    router.push(`/produtos/${produto.id}`);
+    if (produto) {
+      toast.success("Produto criado com sucesso!");
+      router.push(`/produtos/${produto.id}`);
+    } else {
+      toast.error("Erro ao criar produto. Tente novamente.");
+    }
   };
 
   const handleAddTarefa = (status: StatusTarefa) => {
@@ -311,19 +318,18 @@ const ProjetoDetailPage = ({ params }: ProjetoDetailPageProps) => {
     <Layout
       title={projeto.nome}
       subtitle={`Projeto #${id.slice(0, 8)}`}
-      actions={
-        <div className="flex items-center gap-3">
-          <Badge variant={statusVariantMap[projeto.status]}>
-            {STATUS_PROJETO_LABELS[projeto.status]}
-          </Badge>
-          <Link href="/projetos">
-            <Button variant="outline" leftIcon={<ArrowLeft className="h-4 w-4" />}>
-              Voltar
-            </Button>
-          </Link>
-        </div>
-      }
     >
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <Link href="/projetos">
+          <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+            Voltar para Projetos
+          </Button>
+        </Link>
+        <Badge variant={statusVariantMap[projeto.status]}>
+          {STATUS_PROJETO_LABELS[projeto.status]}
+        </Badge>
+      </div>
+
       <Tabs tabs={tabs} defaultTab="detalhes" />
 
       {/* Modal Rejeitar */}
@@ -453,7 +459,7 @@ const ProjetoDetailPage = ({ params }: ProjetoDetailPageProps) => {
               label="Data"
               type="date"
               error={marcoForm.formState.errors.data?.message}
-              {...marcoForm.register("data")}
+              {...marcoForm.register("data", { setValueAs: coerceDate })}
             />
             <Select
               label="Ícone"

@@ -1,11 +1,26 @@
 import { create } from "zustand";
-import { v4 as uuidv4 } from "uuid";
 import type { Alocacao, AlocacaoFormData, StatusAlocacao } from "@/interfaces/alocacao.interface";
-import { mockAlocacoes, mockColaboradores } from "@/utils/mock-data";
+import type { Colaborador } from "@/interfaces/colaborador.interface";
+import { alocacaoService } from "@/services/alocacao.service";
+import { deserialize, deserializeList } from "@/lib/deserialize";
+import { ApiError } from "@/lib/api-client";
+
+const toError = (err: unknown): string =>
+  err instanceof ApiError ? err.message : "Erro inesperado. Tente novamente.";
+
+/**
+ * Retorna os colaboradores da store sem criar dependência circular.
+ */
+const getColaboradores = (): Colaborador[] => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { useColaboradorStore } = require("@/stores/colaborador.store");
+  return (useColaboradorStore.getState().colaboradores as Colaborador[]) ?? [];
+};
 
 interface AlocacaoState {
   alocacoes: Alocacao[];
   isLoading: boolean;
+  error: string | null;
 }
 
 interface AlocacaoActions {
@@ -17,156 +32,134 @@ interface AlocacaoActions {
   getAtivasBySquad: (squadId: string) => Alocacao[];
   calcularOcupacaoColaborador: (colaboradorId: string) => number;
   calcularCustoSquad: (squadId: string) => number;
-  create: (data: AlocacaoFormData) => Alocacao;
-  update: (id: string, data: Partial<AlocacaoFormData>) => Alocacao | undefined;
-  updateStatus: (id: string, status: StatusAlocacao) => Alocacao | undefined;
-  aprovar: (id: string) => Alocacao | undefined;
-  ativar: (id: string) => Alocacao | undefined;
-  encerrar: (id: string) => Alocacao | undefined;
-  rejeitar: (id: string) => Alocacao | undefined;
-  remove: (id: string) => boolean;
-  setLoading: (loading: boolean) => void;
+  fetchAll: () => Promise<void>;
+  create: (data: AlocacaoFormData) => Promise<Alocacao | undefined>;
+  update: (id: string, data: Partial<AlocacaoFormData>) => Promise<Alocacao | undefined>;
+  updateStatus: (id: string, status: StatusAlocacao) => void;
+  aprovar: (id: string) => void;
+  ativar: (id: string) => void;
+  encerrar: (id: string) => void;
+  rejeitar: (id: string) => void;
+  remove: (id: string) => Promise<boolean>;
 }
 
 type AlocacaoStore = AlocacaoState & AlocacaoActions;
 
 export const useAlocacaoStore = create<AlocacaoStore>((set, get) => ({
-  alocacoes: mockAlocacoes,
+  alocacoes: [],
   isLoading: false,
+  error: null,
 
   getAll: () => get().alocacoes,
 
-  getById: (id: string) => get().alocacoes.find((a) => a.id === id),
+  getById: (id) => get().alocacoes.find((a) => a.id === id),
 
-  getBySquad: (squadId: string) =>
-    get().alocacoes.filter((a) => a.squadId === squadId),
+  getBySquad: (squadId) => get().alocacoes.filter((a) => a.squadId === squadId),
 
-  getByColaborador: (colaboradorId: string) =>
+  getByColaborador: (colaboradorId) =>
     get().alocacoes.filter((a) => a.colaboradorId === colaboradorId),
 
-  getAtivasByColaborador: (colaboradorId: string) =>
-    get().alocacoes.filter(
-      (a) => a.colaboradorId === colaboradorId && a.status === "ativa"
-    ),
+  getAtivasByColaborador: (colaboradorId) =>
+    get().alocacoes.filter((a) => a.colaboradorId === colaboradorId && a.status === "ativa"),
 
-  getAtivasBySquad: (squadId: string) =>
-    get().alocacoes.filter(
-      (a) => a.squadId === squadId && a.status === "ativa"
-    ),
+  getAtivasBySquad: (squadId) =>
+    get().alocacoes.filter((a) => a.squadId === squadId && a.status === "ativa"),
 
-  calcularOcupacaoColaborador: (colaboradorId: string) => {
-    const ativas = get().getAtivasByColaborador(colaboradorId);
-    return ativas.reduce((total, a) => total + a.percentual, 0);
+  calcularOcupacaoColaborador: (colaboradorId) =>
+    get()
+      .getAtivasByColaborador(colaboradorId)
+      .reduce((total, a) => total + a.percentual, 0),
+
+  calcularCustoSquad: (squadId) => {
+    const colaboradores = getColaboradores();
+    return get()
+      .getAtivasBySquad(squadId)
+      .reduce((total, a) => {
+        const colab = colaboradores.find((c) => c.id === a.colaboradorId);
+        if (!colab) return total;
+        const horas = (colab.cargaHorariaMensal * a.percentual) / 100;
+        return total + colab.custoHora * horas;
+      }, 0);
   },
 
-  calcularCustoSquad: (squadId: string) => {
-    const alocacoes = get().getAtivasBySquad(squadId);
-    return alocacoes.reduce((total, a) => {
-      const colaborador = mockColaboradores.find((c) => c.id === a.colaboradorId);
-      if (!colaborador) return total;
-      const horasMensais = (colaborador.cargaHorariaMensal * a.percentual) / 100;
-      return total + colaborador.custoHora * horasMensais;
-    }, 0);
-  },
-
-  create: (data: AlocacaoFormData) => {
-    const colaborador = mockColaboradores.find((c) => c.id === data.colaboradorId);
-    const horasMensais = colaborador
-      ? (colaborador.cargaHorariaMensal * data.percentual) / 100
-      : 0;
-    const custoMensal = colaborador ? colaborador.custoHora * horasMensais : 0;
-
-    const newAlocacao: Alocacao = {
-      ...data,
-      id: uuidv4(),
-      status: "pendente",
-      custoMensal,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    set((state) => ({
-      alocacoes: [...state.alocacoes, newAlocacao],
-    }));
-    return newAlocacao;
-  },
-
-  update: (id: string, data: Partial<AlocacaoFormData>) => {
-    let updated: Alocacao | undefined;
-    set((state) => ({
-      alocacoes: state.alocacoes.map((a) => {
-        if (a.id === id) {
-          const colaborador = mockColaboradores.find(
-            (c) => c.id === (data.colaboradorId || a.colaboradorId)
-          );
-          const percentual = data.percentual ?? a.percentual;
-          const horasMensais = colaborador
-            ? (colaborador.cargaHorariaMensal * percentual) / 100
-            : 0;
-          const custoMensal = colaborador ? colaborador.custoHora * horasMensais : a.custoMensal;
-
-          updated = { ...a, ...data, custoMensal, updatedAt: new Date() };
-          return updated;
-        }
-        return a;
-      }),
-    }));
-    return updated;
-  },
-
-  updateStatus: (id: string, status: StatusAlocacao) => {
-    let updated: Alocacao | undefined;
-    set((state) => ({
-      alocacoes: state.alocacoes.map((a) => {
-        if (a.id === id) {
-          updated = { ...a, status, updatedAt: new Date() };
-          return updated;
-        }
-        return a;
-      }),
-    }));
-    return updated;
-  },
-
-  aprovar: (id: string) => {
-    return get().updateStatus(id, "aprovada");
-  },
-
-  ativar: (id: string) => {
-    return get().updateStatus(id, "ativa");
-  },
-
-  encerrar: (id: string) => {
-    let updated: Alocacao | undefined;
-    set((state) => ({
-      alocacoes: state.alocacoes.map((a) => {
-        if (a.id === id) {
-          updated = {
-            ...a,
-            status: "encerrada",
-            dataFim: new Date(),
-            updatedAt: new Date(),
-          };
-          return updated;
-        }
-        return a;
-      }),
-    }));
-    return updated;
-  },
-
-  rejeitar: (id: string) => {
-    return get().updateStatus(id, "rejeitada");
-  },
-
-  remove: (id: string) => {
-    const exists = get().alocacoes.some((a) => a.id === id);
-    if (exists) {
-      set((state) => ({
-        alocacoes: state.alocacoes.filter((a) => a.id !== id),
-      }));
+  fetchAll: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const data = await alocacaoService.getAll();
+      set({
+        alocacoes: deserializeList(data, ["dataInicio", "dataFim"]),
+        isLoading: false,
+      });
+    } catch (err) {
+      set({ error: toError(err), isLoading: false });
     }
-    return exists;
   },
 
-  setLoading: (loading: boolean) => set({ isLoading: loading }),
+  create: async (data) => {
+    try {
+      const nova = await alocacaoService.create(data);
+      const deserialized = deserialize(nova, ["dataInicio", "dataFim"]);
+      set((state) => ({ alocacoes: [...state.alocacoes, deserialized] }));
+      return deserialized;
+    } catch (err) {
+      set({ error: toError(err) });
+      return undefined;
+    }
+  },
+
+  update: async (id, data) => {
+    try {
+      const updated = await alocacaoService.update(id, data);
+      const deserialized = deserialize(updated, ["dataInicio", "dataFim"]);
+      set((state) => ({
+        alocacoes: state.alocacoes.map((a) => (a.id === id ? deserialized : a)),
+      }));
+      return deserialized;
+    } catch (err) {
+      set({ error: toError(err) });
+      return undefined;
+    }
+  },
+
+  // Mutations de status: otimistas (atualiza estado imediatamente + sincroniza em background)
+  updateStatus: (id, status) => {
+    set((state) => ({
+      alocacoes: state.alocacoes.map((a) =>
+        a.id === id ? { ...a, status, updatedAt: new Date() } : a,
+      ),
+    }));
+    // status não está em AlocacaoFormData, mas o endpoint PATCH aceita campos parciais
+    void alocacaoService
+      .update(id, { status } as unknown as Partial<AlocacaoFormData>)
+      .catch(() => set({ error: "Erro ao atualizar status da alocação." }));
+  },
+
+  aprovar: (id) => get().updateStatus(id, "aprovada"),
+  ativar: (id) => get().updateStatus(id, "ativa"),
+
+  encerrar: (id) => {
+    set((state) => ({
+      alocacoes: state.alocacoes.map((a) =>
+        a.id === id
+          ? { ...a, status: "encerrada" as StatusAlocacao, dataFim: new Date(), updatedAt: new Date() }
+          : a,
+      ),
+    }));
+    void alocacaoService
+      .update(id, { status: "encerrada" } as unknown as Partial<AlocacaoFormData>)
+      .catch(() => set({ error: "Erro ao encerrar alocação." }));
+  },
+
+  rejeitar: (id) => get().updateStatus(id, "rejeitada"),
+
+  remove: async (id) => {
+    try {
+      await alocacaoService.remove(id);
+      set((state) => ({ alocacoes: state.alocacoes.filter((a) => a.id !== id) }));
+      return true;
+    } catch (err) {
+      set({ error: toError(err) });
+      return false;
+    }
+  },
 }));

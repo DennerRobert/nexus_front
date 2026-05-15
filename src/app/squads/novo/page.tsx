@@ -30,13 +30,13 @@ const NovoSquadPage = () => {
     resolver: zodResolver(squadSchema),
   });
 
-  const handleFormSubmit = (data: SquadSchemaType) => {
-    try {
-      const squad = create(data);
+  const handleFormSubmit = async (data: SquadSchemaType) => {
+    const squad = await create(data);
+    if (squad) {
       toast.success("Squad criado com sucesso!");
       router.push(`/squads/${squad.id}`);
-    } catch {
-      toast.error("Erro ao criar squad");
+    } else {
+      toast.error("Erro ao criar squad. Tente novamente.");
     }
   };
 
@@ -44,14 +44,14 @@ const NovoSquadPage = () => {
     <Layout
       title="Novo Squad"
       subtitle="Criar um squad transversal"
-      actions={
+    >
+      <div className="mb-6">
         <Link href="/squads">
-          <Button variant="outline" leftIcon={<ArrowLeft className="h-4 w-4" />}>
-            Voltar
+          <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+            Voltar para Squads
           </Button>
         </Link>
-      }
-    >
+      </div>
       <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
         <Card>
           <CardHeader>

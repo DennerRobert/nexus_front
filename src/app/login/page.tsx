@@ -9,7 +9,8 @@ import { useAuthStore } from "@/stores/auth.store";
 import { loginFormSchema, type LoginFormSchema } from "@/schemas/usuario.schema";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Sparkles, Lock, Mail, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { Lock, Mail, AlertCircle, Eye, EyeOff } from "lucide-react";
+import Image from "next/image";
 
 const LoginPage = () => {
   const router = useRouter();
@@ -49,9 +50,13 @@ const LoginPage = () => {
         {/* Logo e título */}
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-8">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/20">
-              <Sparkles className="h-6 w-6 text-white" />
-            </div>
+            <Image
+              src="/logo-nexus.svg"
+              alt="Nexus Logo"
+              width={48}
+              height={48}
+              className="rounded-xl"
+            />
             <span className="text-3xl font-bold text-white tracking-tight">
               Nexus
             </span>
@@ -87,7 +92,7 @@ const LoginPage = () => {
 
         {/* Footer */}
         <div className="relative z-10 text-sm text-slate-500">
-          © 2026 Nexus SGPI. Todos os direitos reservados.
+          © 2026 Nexus. Todos os direitos reservados.
         </div>
       </div>
 
@@ -96,9 +101,13 @@ const LoginPage = () => {
         <div className="w-full max-w-md">
           {/* Logo mobile */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-12">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600">
-              <Sparkles className="h-5 w-5 text-white" />
-            </div>
+            <Image
+              src="/logo-nexus.svg"
+              alt="Nexus Logo"
+              width={40}
+              height={40}
+              className="rounded-xl"
+            />
             <span className="text-2xl font-bold text-white">Nexus</span>
           </div>
 
@@ -187,33 +196,6 @@ const LoginPage = () => {
               </Button>
             </form>
 
-            {/* Credenciais de teste */}
-            <div className="mt-8 pt-6 border-t border-slate-700/50">
-              <p className="text-xs text-slate-500 text-center mb-3">
-                Credenciais de teste (ambiente de desenvolvimento)
-              </p>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="p-2 rounded bg-slate-900/50 border border-slate-700/30">
-                  <p className="text-slate-400">Admin</p>
-                  <p className="text-slate-300 font-mono">admin@nexus.com</p>
-                </div>
-                <div className="p-2 rounded bg-slate-900/50 border border-slate-700/30">
-                  <p className="text-slate-400">Gestor</p>
-                  <p className="text-slate-300 font-mono">gestor@nexus.com</p>
-                </div>
-                <div className="p-2 rounded bg-slate-900/50 border border-slate-700/30">
-                  <p className="text-slate-400">Analista</p>
-                  <p className="text-slate-300 font-mono">analista@nexus.com</p>
-                </div>
-                <div className="p-2 rounded bg-slate-900/50 border border-slate-700/30">
-                  <p className="text-slate-400">Dev</p>
-                  <p className="text-slate-300 font-mono">dev@nexus.com</p>
-                </div>
-              </div>
-              <p className="text-xs text-slate-500 text-center mt-2">
-                Senha: <span className="font-mono text-slate-400">123456</span>
-              </p>
-            </div>
           </div>
         </div>
       </div>

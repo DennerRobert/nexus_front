@@ -36,11 +36,22 @@ export const useContextoData = () => {
     return contexto.unidadeId ? [contexto.unidadeId] : [];
   }, [isTodasUnidades, empresasDoTenant, contexto.unidadeId]);
 
-  // Função genérica para filtrar por empresaId
+  // Função genérica para filtrar por empresaId (entidades com campo único)
   const filterByEmpresa = <T extends { empresaId?: string }>(items: T[]): T[] => {
     if (empresasParaFiltrar.length === 0) return items;
     return items.filter(
       (item) => !item.empresaId || empresasParaFiltrar.includes(item.empresaId)
+    );
+  };
+
+  // Função para filtrar entidades com relacionamento N-N de empresas (campo empresaIds)
+  const filterByEmpresaIds = <T extends { empresaIds?: string[] }>(items: T[]): T[] => {
+    if (empresasParaFiltrar.length === 0) return items;
+    return items.filter(
+      (item) =>
+        !item.empresaIds ||
+        item.empresaIds.length === 0 ||
+        item.empresaIds.some((eid) => empresasParaFiltrar.includes(eid))
     );
   };
 
@@ -67,6 +78,7 @@ export const useContextoData = () => {
     empresasDoTenant,
     empresasParaFiltrar,
     filterByEmpresa,
+    filterByEmpresaIds,
     filterByEmpresaDona,
     filterByUnidadeApoio,
   };
@@ -76,16 +88,16 @@ export const useContextoData = () => {
  * Hook para obter colaboradores filtrados pelo contexto
  */
 export const useColaboradoresContexto = () => {
-  const { filterByEmpresa } = useContextoData();
+  const { filterByEmpresaIds } = useContextoData();
   const { getComOcupacao, getAll } = useColaboradorStore();
 
   const colaboradores = useMemo(() => {
-    return filterByEmpresa(getAll());
-  }, [filterByEmpresa, getAll]);
+    return filterByEmpresaIds(getAll());
+  }, [filterByEmpresaIds, getAll]);
 
   const colaboradoresComOcupacao = useMemo(() => {
-    return filterByEmpresa(getComOcupacao());
-  }, [filterByEmpresa, getComOcupacao]);
+    return filterByEmpresaIds(getComOcupacao());
+  }, [filterByEmpresaIds, getComOcupacao]);
 
   return { colaboradores, colaboradoresComOcupacao };
 };

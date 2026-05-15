@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/Button";
 import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
 import { useEmpresaStore } from "@/stores/empresa.store";
+import { useProjetoStore } from "@/stores/projeto.store";
 import { useProjetosContexto } from "@/hooks/useContextoData";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import type { Projeto, StatusProjeto } from "@/interfaces/projeto.interface";
 import { STATUS_PROJETO_LABELS } from "@/interfaces/projeto.interface";
 import { formatCurrency, formatDate } from "@/utils/formatters";
@@ -27,6 +29,8 @@ const statusVariantMap: Record<StatusProjeto, BadgeVariant> = {
 const ProjetosPage = () => {
   const { projetos } = useProjetosContexto();
   const { getById: getEmpresa } = useEmpresaStore();
+  const isLoading = useProjetoStore((s) => s.isLoading);
+  const error = useProjetoStore((s) => s.error);
 
   const stats = useMemo(() => {
     const total = projetos.length;
@@ -108,6 +112,25 @@ const ProjetosPage = () => {
     ],
     [getEmpresa]
   );
+
+  if (isLoading && projetos.length === 0) {
+    return (
+      <Layout title="Projetos" subtitle="Gestão do ciclo de vida dos projetos">
+        <PageSkeleton stats={4} tableRows={6} tableCols={5} />
+      </Layout>
+    );
+  }
+
+  if (error && projetos.length === 0) {
+    return (
+      <Layout title="Projetos" subtitle="Gestão do ciclo de vida dos projetos">
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-center space-y-2">
+          <p className="text-red-400 font-medium">Erro ao carregar projetos</p>
+          <p className="text-sm text-slate-400">{error}</p>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout

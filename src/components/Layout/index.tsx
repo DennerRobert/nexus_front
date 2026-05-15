@@ -3,6 +3,8 @@
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { Toaster } from "sonner";
+import { useUIStore } from "@/stores/ui.store";
+import { cn } from "@/utils/cn";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,10 +14,17 @@ interface LayoutProps {
 }
 
 export const Layout = ({ children, title, subtitle, actions }: LayoutProps) => {
+  const { isSidebarCollapsed } = useUIStore();
+
   return (
     <div className="min-h-screen bg-slate-950">
       <Sidebar />
-      <div className="ml-64 transition-all duration-300">
+      <div
+        className={cn(
+          "transition-all duration-300",
+          isSidebarCollapsed ? "ml-16" : "ml-64"
+        )}
+      >
         <Header title={title} subtitle={subtitle} actions={actions} />
         <main className="p-6">{children}</main>
       </div>

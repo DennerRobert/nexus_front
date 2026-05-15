@@ -54,3 +54,15 @@ export const truncateText = (text: string, maxLength: number): string => {
   if (text.length <= maxLength) return text;
   return `${text.slice(0, maxLength)}...`;
 };
+
+/**
+ * Converte string (de <input type="date">) ou Date em Date.
+ * Usado como `setValueAs` no register() para campos de data,
+ * permitindo z.date() no schema (sem z.coerce.date()).
+ */
+export const coerceDate = (value: unknown): Date | undefined => {
+  if (!value) return undefined;
+  if (value instanceof Date) return value;
+  const parsed = new Date(String(value));
+  return isNaN(parsed.getTime()) ? undefined : parsed;
+};

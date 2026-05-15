@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/utils/cn";
 import { useTenantStore } from "@/stores/tenant.store";
 import { useEmpresaStore } from "@/stores/empresa.store";
 import { useContextoStore } from "@/stores/contexto.store";
 import { useAuthStore } from "@/stores/auth.store";
+import { useUIStore } from "@/stores/ui.store";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { TODAS_UNIDADES } from "@/interfaces/tenant.interface";
 import { PERFIL_USUARIO_LABELS, PERFIL_USUARIO_COLORS } from "@/interfaces/usuario.interface";
@@ -34,14 +36,15 @@ interface NavItem {
   label: string;
   icon: typeof LayoutDashboard;
   modulo: Modulo;
+  emDesenvolvimento?: boolean;
 }
 
 const navItems: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, modulo: "dashboard" },
   { href: "/demandas", label: "Demandas", icon: FileText, modulo: "demandas" },
-  { href: "/projetos", label: "Projetos", icon: FolderKanban, modulo: "projetos" },
-  { href: "/produtos", label: "Produtos", icon: Package, modulo: "produtos" },
-  { href: "/squads", label: "Squads", icon: Users, modulo: "squads" },
+  { href: "/projetos", label: "Projetos", icon: FolderKanban, modulo: "projetos", emDesenvolvimento: true },
+  { href: "/produtos", label: "Produtos", icon: Package, modulo: "produtos", emDesenvolvimento: true },
+  { href: "/squads", label: "Squads", icon: Users, modulo: "squads", emDesenvolvimento: true },
   { href: "/colaboradores", label: "Colaboradores", icon: UserCircle, modulo: "colaboradores" },
   { href: "/empresas", label: "Empresas", icon: Building2, modulo: "empresas" },
   { href: "/clientes", label: "Clientes", icon: Briefcase, modulo: "clientes" },
@@ -49,7 +52,7 @@ const navItems: NavItem[] = [
 
 export const Sidebar = () => {
   const pathname = usePathname();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const { isSidebarCollapsed: isCollapsed, toggleSidebar, expandSidebar } = useUIStore();
   const [showContextMenu, setShowContextMenu] = useState(false);
 
   // Stores
@@ -59,8 +62,10 @@ export const Sidebar = () => {
   const { usuario, logout } = useAuthStore();
   const { podeAcessarModulo } = usePermissoes();
 
-  // Filtra os itens de navegação com base nas permissões
-  const navItemsPermitidos = navItems.filter((item) => podeAcessarModulo(item.modulo));
+  // Filtra os itens de navegação com base nas permissões (mantém itens em dev para exibição desabilitada)
+  const navItemsVisiveis = navItems.filter(
+    (item) => item.emDesenvolvimento || podeAcessarModulo(item.modulo)
+  );
 
   const tenants = getTenants();
   const currentTenant = contexto.tenantId ? getTenant(contexto.tenantId) : null;
@@ -75,10 +80,10 @@ export const Sidebar = () => {
   }, [tenants, isInitialized, initialize]);
 
   const handleToggle = () => {
-    setIsCollapsed(!isCollapsed);
     if (!isCollapsed) {
       setShowContextMenu(false);
     }
+    toggleSidebar();
   };
 
   const handleSelectTenant = (tenantId: string) => {
@@ -99,20 +104,31 @@ export const Sidebar = () => {
     >
       {/* Header com Logo */}
       <div className="flex h-16 items-center justify-between border-b border-slate-700/50 px-4">
-        {!isCollapsed && (
+        {isCollapsed ? (
+          <Link href="/" className="mx-auto" aria-label="Nexus SGPI">
+            <Image
+              src="/logo-nexus.svg"
+              alt="Nexus Logo"
+              width={32}
+              height={32}
+              className="rounded-lg"
+            />
+          </Link>
+        ) : (
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-violet-500">
-              <span className="text-sm font-bold text-white">S</span>
-            </div>
-            <span className="text-lg font-bold text-slate-100">SGPI</span>
+            <Image
+              src="/logo-nexus.svg"
+              alt="Nexus Logo"
+              width={32}
+              height={32}
+              className="rounded-lg"
+            />
+            <span className="text-lg font-bold text-slate-100">Nexus</span>
           </Link>
         )}
         <button
           onClick={handleToggle}
-          className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-100",
-            isCollapsed && "mx-auto"
-          )}
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-100"
           aria-label={isCollapsed ? "Expandir menu" : "Recolher menu"}
         >
           {isCollapsed ? (
@@ -240,7 +256,7 @@ export const Sidebar = () => {
         /* Botão compacto quando colapsado */
         <div className="border-b border-slate-700/50 p-2">
           <button
-            onClick={() => setIsCollapsed(false)}
+            onClick={expandSidebar}
             className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-800/50 text-cyan-400 hover:bg-slate-800 mx-auto"
             title={`${currentTenant?.nome} - ${currentUnidade?.nome || TODAS_UNIDADES.nome}`}
           >
@@ -252,11 +268,36 @@ export const Sidebar = () => {
       {/* Navegação */}
       <nav className="flex-1 overflow-y-auto p-3">
         <ul className="space-y-1">
-          {navItemsPermitidos.map((item) => {
+          {navItemsVisiveis.map((item) => {
             const Icon = item.icon;
             const isActive =
               pathname === item.href ||
               (item.href !== "/" && pathname.startsWith(item.href));
+
+            if (item.emDesenvolvimento) {
+              return (
+                <li key={item.href}>
+                  <span
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium",
+                      "text-slate-600 cursor-not-allowed select-none",
+                      isCollapsed && "justify-center px-2"
+                    )}
+                    title={isCollapsed ? `${item.label} — Em desenvolvimento` : undefined}
+                  >
+                    <Icon className="h-5 w-5 flex-shrink-0" />
+                    {!isCollapsed && (
+                      <>
+                        <span className="flex-1">{item.label}</span>
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700/50 leading-tight">
+                          Em breve
+                        </span>
+                      </>
+                    )}
+                  </span>
+                </li>
+              );
+            }
 
             return (
               <li key={item.href}>
@@ -288,8 +329,12 @@ export const Sidebar = () => {
             {usuario && (
               <div className="rounded-lg bg-slate-800/50 p-3">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-200 truncate">
+                  <Link
+                    href="/perfil"
+                    className="flex-1 min-w-0 group"
+                    title="Meu Perfil"
+                  >
+                    <p className="text-sm font-medium text-slate-200 truncate group-hover:text-cyan-400 transition-colors">
                       {usuario.nome}
                     </p>
                     <p className="text-xs text-slate-500 truncate">
@@ -304,7 +349,7 @@ export const Sidebar = () => {
                     >
                       {PERFIL_USUARIO_LABELS[usuario.perfil]}
                     </span>
-                  </div>
+                  </Link>
                   <button
                     onClick={logout}
                     className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"

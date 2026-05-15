@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
 import { useEmpresaStore } from "@/stores/empresa.store";
+import { useColaboradorStore } from "@/stores/colaborador.store";
 import { useColaboradoresContexto } from "@/hooks/useContextoData";
 import type { ColaboradorComOcupacao } from "@/interfaces/colaborador.interface";
 import {
@@ -16,11 +17,14 @@ import {
   SENIORIDADE_ABREV,
 } from "@/interfaces/colaborador.interface";
 import { formatCurrency } from "@/utils/formatters";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Plus, Users, AlertTriangle, CheckCircle, Eye, Edit } from "lucide-react";
 
 const ColaboradoresPage = () => {
   const { colaboradoresComOcupacao } = useColaboradoresContexto();
   const { getById: getEmpresa } = useEmpresaStore();
+  const isLoading = useColaboradorStore((s) => s.isLoading);
+  const error = useColaboradorStore((s) => s.error);
 
   const stats = useMemo(() => {
     const total = colaboradoresComOcupacao.length;
@@ -47,11 +51,24 @@ const ColaboradoresPage = () => {
         ),
       },
       {
-        accessorKey: "empresaId",
-        header: "Empresa",
+        accessorKey: "empresaIds",
+        header: "Empresas",
         cell: ({ row }) => {
-          const empresa = getEmpresa(row.original.empresaId);
-          return empresa?.nome || "-";
+          const ids = row.original.empresaIds || [];
+          if (ids.length === 0) return <span className="text-slate-500">-</span>;
+          return (
+            <div className="flex flex-col gap-0.5">
+              {ids.slice(0, 2).map((eid) => {
+                const empresa = getEmpresa(eid);
+                return empresa ? (
+                  <span key={eid} className="text-sm text-slate-200">{empresa.nome}</span>
+                ) : null;
+              })}
+              {ids.length > 2 && (
+                <span className="text-xs text-slate-500">+{ids.length - 2} mais</span>
+              )}
+            </div>
+          );
         },
       },
       {
@@ -142,19 +159,39 @@ const ColaboradoresPage = () => {
     [getEmpresa]
   );
 
+  if (isLoading && colaboradoresComOcupacao.length === 0) {
+    return (
+      <Layout title="Colaboradores" subtitle="Gestão de recursos humanos e especialidades">
+        <PageSkeleton stats={5} tableRows={6} tableCols={6} />
+      </Layout>
+    );
+  }
+
+  if (error && colaboradoresComOcupacao.length === 0) {
+    return (
+      <Layout title="Colaboradores" subtitle="Gestão de recursos humanos e especialidades">
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-center space-y-2">
+          <p className="text-red-400 font-medium">Erro ao carregar colaboradores</p>
+          <p className="text-sm text-slate-400">{error}</p>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout
       title="Colaboradores"
       subtitle="Gestão de recursos humanos e especialidades"
-      actions={
-        <Link href="/colaboradores/novo">
-          <Button leftIcon={<Plus className="h-4 w-4" />}>
-            Novo Colaborador
-          </Button>
-        </Link>
-      }
     >
       <div className="space-y-6">
+        <div className="flex justify-end">
+          <Link href="/colaboradores/novo">
+            <Button leftIcon={<Plus className="h-4 w-4" />}>
+              Novo Colaborador
+            </Button>
+          </Link>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Total de Colaboradores"

@@ -1,0 +1,1528 @@
+# Manifesto Backend — Nexus
+# Plataforma Corporativa de Gestão de Portfólio, Projetos e Inovação
+
+project:
+  framework: fastapi
+  name: "nexus"
+  description: "Nexus — Plataforma Corporativa de Gestão de Portfólio, Projetos e Inovação"
+  package_manager: "pip"
+  database: "postgresql"
+
+  features:
+    - docker
+    - makefile
+    - celery                   # Processamento de notificações e saúde de projetos
+    - redis                    # Broker Celery e cache
+    - websockets               # Notificações em tempo real
+    - keycloak                 # SSO / autenticação centralizada
+    - rbac
+    - tenants
+    - gitlab-ci
+
+
+# Configurações Específicas
+config:
+  celery:
+    broker_url: "redis://redis:6379/0"
+    result_backend: "redis://redis:6379/1"
+    task_serializer: "json"
+    result_serializer: "json"
+    accept_content: ["json"]
+    timezone: "America/Sao_Paulo"
+    beat_schedule:
+      process_notifications:
+        task: "api.tasks.process_notifications"
+        schedule_seconds: 30         # Enfileira e despacha notificações pendentes
+      calculate_project_health:
+        task: "api.tasks.calculate_project_health"
+        schedule_seconds: 86400      # Recalcula score de saúde de projetos em execução (diário)
+      cleanup_audit_logs:
+        task: "api.tasks.cleanup_audit_logs"
+        schedule_seconds: 604800     # Purga logs de auditoria antigos (semanal)
+
+
+# Módulos de Domínio
+modules:
+  # ============================================
+  # CORE: TENANT & EMPRESA
+  # ============================================
+  - name: "core"
+    description: "Multitenancy, empresas do grupo econômico e setores organizacionais"
+    models:
+      - name: "Tenant"
+        description: "Tenant raiz que isola os dados de cada grupo econômico"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "id:uuid:pk:auto"
+          - "nome:str:max_length=255"
+          - "slug:str:max_length=100:unique"
+          - "descricao:text:default=''"
+          - "logo_url:str:max_length=500:null"
+          - "ativo:bool:default=True"
+        resource_name: "tenant"
+
+      - name: "Empresa"
+        description: "Unidade de negócio do grupo econômico vinculada a um tenant"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "id:uuid:pk:auto"
+          - "tenant:fk:Tenant"
+          - "nome:str:max_length=255"
+          - "cnpj:str:max_length=18:null"
+          - "email:str:max_length=255:null"
+          - "telefone:str:max_length=30:null"
+          - "descricao:text:default=''"
+          - "segmento:str:max_length=100:null"
+          - "ativa:bool:default=True"
+          - "formulario_tipo:str:max_length=50:null"
+          - "dados_adicionais:json:default={}"
+        resource_name: "empresa"
+
+      - name: "Setor"
+        description: "Setor organizacional pertencente a uma empresa"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "id:uuid:pk:auto"
+          - "empresa:fk:Empresa"
+          - "nome:str:max_length=255"
+          - "descricao:text:default=''"
+          - "ativo:bool:default=True"
+        resource_name: "setor"
+
+
+  # ============================================
+  # ACCOUNTS: USUÁRIOS & COLABORADORES
+  # ============================================
+  - name: "accounts"
+    description: "Contas de acesso, colaboradores, vínculos empregatícios e especialidades técnicas"
+    models:
+      - name: "Colaborador"
+        description: "Profissional do tenant com especialidades técnicas e histórico de alocações"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "id:uuid:pk:auto"
+          - "tenant:fk:core.Tenant"
+          - "nome:str:max_length=255"
+          - "email:str:max_length=255:unique"
+          - "matricula:str:max_length=50:null"
+          - "ativo:bool:default=True"
+          - "setores:m2m:core.Setor"
+        resource_name: "colaborador"
+
+      - name: "VinculoEmpregaticio"
+        description: "Vínculo formal entre colaborador e empresa com custo/hora para rateio intercompany"
+        fields:
+          - "id:uuid:pk:auto"
+          - "colaborador:fk:Colaborador"
+          - "empresa:fk:core.Empresa"
+          - "cargo:str:max_length=100:default=''"
+          - "custo_hora:decimal:max_digits=10:decimal_places=2:default=0.00"
+          - "carga_horaria_mensal:int:default=160"
+          - "data_admissao:date:null"
+          - "ativo:bool:default=True"
+        resource_name: "vinculo"
+
+      - name: "ColaboradorEspecialidade"
+        description: "Área de especialidade técnica do colaborador com senioridade própria"
+        fields:
+          - "id:uuid:pk:auto"
+          - "colaborador:fk:Colaborador"
+          - "area:str:max_length=50:choices=AreaEspecialidade"
+          - "senioridade:str:max_length=20:choices=SenioridadeColaborador"
+          - "framework_principal:str:max_length=100:null"
+        resource_name: "especialidade"
+
+      - name: "ColaboradorEspecialidadeTecnologia"
+        description: "Tecnologia dominada pelo colaborador em determinada especialidade"
+        fields:
+          - "id:uuid:pk:auto"
+          - "especialidade:fk:ColaboradorEspecialidade"
+          - "tecnologia:str:max_length=100"
+          - "origem:str:max_length=30:choices=OrigemTecnologia:default='declarado'"
+        resource_name: "tecnologia"
+
+      - name: "Usuario"
+        description: "Conta de acesso ao sistema vinculada opcionalmente a um colaborador"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "id:uuid:pk:auto"
+          - "tenant:fk:core.Tenant"
+          - "empresa:fk:core.Empresa:null"
+          - "colaborador:o2o:Colaborador:null"
+          - "nome:str:max_length=255"
+          - "email:str:max_length=255:unique"
+          - "senha_hash:str:max_length=255:default=''"
+          - "avatar_url:str:max_length=500:null"
+          - "perfil:str:max_length=30:choices=PerfilUsuario:default='colaborador'"
+          - "ativo:bool:default=True"
+          - "empresas:m2m:core.Empresa"
+        resource_name: "usuario"
+
+
+  # ============================================
+  # CLIENTS: CLIENTES
+  # ============================================
+  - name: "clients"
+    description: "Clientes internos e externos vinculáveis a demandas, projetos e produtos"
+    models:
+      - name: "Cliente"
+        description: "Cliente (interno ou externo) com modelo de receita e natureza jurídica"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "id:uuid:pk:auto"
+          - "tenant:fk:core.Tenant"
+          - "nome:str:max_length=255"
+          - "origem:str:max_length=50:default='externo'"
+          - "empresa:fk:core.Empresa:null"
+          - "natureza_juridica:str:max_length=10:null:choices=NaturezaJuridica"
+          - "cnpj:str:max_length=18:null"
+          - "email:str:max_length=255:null"
+          - "telefone:str:max_length=30:null"
+          - "modelo_receita:str:max_length=30:null:choices=ModeloReceita"
+          - "ativo:bool:default=True"
+        resource_name: "cliente"
+
+
+  # ============================================
+  # INNOVATION: DEMANDAS & GOVERNANÇA
+  # ============================================
+  - name: "innovation"
+    description: "Pipeline de demandas, comitês de aprovação, votação e avaliação por critérios ponderados"
+    models:
+      - name: "Comite"
+        description: "Comitê responsável por analisar e aprovar demandas de inovação"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "id:uuid:pk:auto"
+          - "tenant:fk:core.Tenant"
+          - "chefe:fk:accounts.Usuario:null"
+          - "nome:str:max_length=255"
+          - "descricao:text:default=''"
+          - "ativo:bool:default=True"
+          - "membros:m2m:accounts.Usuario"
+        resource_name: "comite"
+
+      - name: "CriterioAvaliacao"
+        description: "Critério ponderado de avaliação de demandas (ex: Viabilidade Técnica, Alinhamento Estratégico)"
+        fields:
+          - "id:uuid:pk:auto"
+          - "nome:str:max_length=255"
+          - "descricao:text:default=''"
+          - "peso:int:default=10"
+        resource_name: "criterio"
+
+      - name: "PerguntaAvaliacao"
+        description: "Pergunta de avaliação vinculada a um critério com escala 1–5"
+        fields:
+          - "id:uuid:pk:auto"
+          - "criterio:fk:CriterioAvaliacao"
+          - "texto:text"
+        resource_name: "pergunta"
+
+      - name: "OpcaoAvaliacao"
+        description: "Opção de resposta (valor + descrição) de uma pergunta de avaliação"
+        fields:
+          - "id:uuid:pk:auto"
+          - "pergunta:fk:PerguntaAvaliacao"
+          - "valor:smallint:default=1"
+          - "descricao:text:default=''"
+        resource_name: "opcao_avaliacao"
+
+      - name: "Demanda"
+        description: "Iniciativa/ideia submetida ao pipeline de inovação com fluxo de 10 etapas"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "id:uuid:pk:auto"
+          - "tenant:fk:core.Tenant"
+          - "solicitante:fk:accounts.Usuario:null"
+          - "empresa_unidade_apoio:fk:core.Empresa:null"
+          - "comite:fk:Comite:null"
+          - "nome_proponente:str:max_length=255:default=''"
+          - "titulo:str:max_length=255"
+          - "estagio_ideia:str:max_length=30:null:choices=EstagioIdeia"
+          - "problema_resolver:text:default=''"
+          - "horizonte_inovacao:str:max_length=5:null:choices=HorizonteInovacao"
+          - "prazo_desejado:date:null"
+          - "status:str:max_length=30:default='aberta'"
+          - "etapa:str:max_length=50:choices=EtapaDemanda:default='ideia_recebida'"
+          - "exibir_vitrine:bool:default=False"
+          - "observacoes:text:default=''"
+          - "dados_customizados:json:default={}"
+          - "clientes:m2m:clients.Cliente"
+        resource_name: "demanda"
+
+      - name: "AnexoDemanda"
+        description: "Arquivo anexo vinculado a uma demanda"
+        fields:
+          - "id:uuid:pk:auto"
+          - "demanda:fk:Demanda"
+          - "upload_por:fk:accounts.Usuario:null"
+          - "nome:str:max_length=255"
+          - "nome_original:str:max_length=255:default=''"
+          - "tipo:str:max_length=50:default=''"
+          - "tamanho:bigint:default=0"
+          - "created_at:datetime:auto_now_add"
+        resource_name: "anexo"
+
+      - name: "HistoricoEtapa"
+        description: "Registro imutável de cada transição de etapa de uma demanda"
+        fields:
+          - "id:uuid:pk:auto"
+          - "demanda:fk:Demanda"
+          - "usuario:fk:accounts.Usuario:null"
+          - "etapa_anterior:str:max_length=50:default=''"
+          - "etapa_nova:str:max_length=50"
+          - "observacao:text:default=''"
+          - "justificativa:text:default=''"
+          - "data:datetime:auto_now_add"
+        resource_name: "historico_etapa"
+
+      - name: "VotoComite"
+        description: "Voto de aprovação ou rejeição de um membro do comitê sobre uma demanda"
+        fields:
+          - "id:uuid:pk:auto"
+          - "demanda:fk:Demanda"
+          - "comite:fk:Comite"
+          - "membro:fk:accounts.Usuario"
+          - "aprovado:bool:default=False"
+          - "comentario:text:default=''"
+          - "data:datetime:auto_now_add"
+        constraints:
+          - "unique_together: [demanda, membro]"
+        resource_name: "voto"
+
+      - name: "RespostaAvaliacao"
+        description: "Resposta (1–5) de um avaliador a uma pergunta de critério de uma demanda"
+        fields:
+          - "id:uuid:pk:auto"
+          - "demanda:fk:Demanda"
+          - "pergunta:fk:PerguntaAvaliacao"
+          - "criterio:fk:CriterioAvaliacao"
+          - "avaliador:fk:accounts.Usuario"
+          - "valor:smallint:default=1"
+          - "data:datetime:auto_now_add"
+        constraints:
+          - "unique_together: [demanda, pergunta, avaliador]"
+        resource_name: "resposta"
+
+
+  # ============================================
+  # PROJECTS: PROJETOS & EXECUÇÃO
+  # ============================================
+  - name: "projects"
+    description: "Projetos, squads, alocações, sprints, tarefas e registro de horas"
+    models:
+      - name: "Projeto"
+        description: "Projeto aprovado originado de uma demanda, com controle de custo e prazo"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "id:uuid:pk:auto"
+          - "tenant:fk:core.Tenant"
+          - "empresa_dona:fk:core.Empresa:null"
+          - "demanda:o2o:innovation.Demanda:null"
+          - "nome:str:max_length=255"
+          - "descricao:text:default=''"
+          - "status:str:max_length=30:choices=StatusProjeto:default='aguardando_aprovacao'"
+          - "data_inicio:date:null"
+          - "data_fim_prevista:date:null"
+          - "data_fim_real:date:null"
+          - "orcamento:decimal:max_digits=14:decimal_places=2:default=0.00"
+          - "custo_atual:decimal:max_digits=14:decimal_places=2:default=0.00"
+          - "clientes:m2m:clients.Cliente"
+        resource_name: "projeto"
+
+      - name: "Squad"
+        description: "Equipe multidisciplinar e possivelmente transversal alocada a um projeto"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "id:uuid:pk:auto"
+          - "projeto:fk:Projeto"
+          - "nome:str:max_length=255"
+          - "objetivo:text:default=''"
+          - "status:str:max_length=20:choices=StatusSquad:default='em_formacao'"
+          - "data_inicio:date:null"
+          - "data_fim:date:null"
+          - "custo_mensal:decimal:max_digits=14:decimal_places=2:default=0.00"
+        resource_name: "squad"
+
+      - name: "Alocacao"
+        description: "Alocação formal de um colaborador em um squad com papel e percentual de dedicação"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "id:uuid:pk:auto"
+          - "colaborador:fk:accounts.Colaborador"
+          - "squad:fk:Squad"
+          - "papel:str:max_length=30:choices=PapelAlocacao"
+          - "percentual:smallint:default=100"
+          - "status:str:max_length=20:choices=StatusAlocacao:default='ativo'"
+          - "data_inicio:date:null"
+          - "data_fim:date:null"
+          - "custo_mensal:decimal:max_digits=14:decimal_places=2:default=0.00"
+        resource_name: "alocacao"
+
+      - name: "Sprint"
+        description: "Sprint de desenvolvimento de um projeto (apenas uma ativa por vez)"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "id:uuid:pk:auto"
+          - "projeto:fk:Projeto"
+          - "nome:str:max_length=255"
+          - "objetivo:text:default=''"
+          - "numero:smallint:default=1"
+          - "data_inicio:date:null"
+          - "data_fim:date:null"
+          - "status:str:max_length=20:choices=StatusSprint:default='planejamento'"
+        resource_name: "sprint"
+
+      - name: "Tarefa"
+        description: "Tarefa de desenvolvimento vinculada a projeto e sprint com estimativa de horas"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "id:uuid:pk:auto"
+          - "tenant:fk:core.Tenant"
+          - "projeto:fk:Projeto"
+          - "sprint:fk:Sprint:null"
+          - "responsavel:fk:accounts.Colaborador:null"
+          - "titulo:str:max_length=255"
+          - "descricao:text:default=''"
+          - "status:str:max_length=20:choices=StatusTarefa:default='pendente'"
+          - "prioridade:str:max_length=20:choices=PrioridadeTarefa:default='media'"
+          - "estimativa_horas:decimal:max_digits=6:decimal_places=2:null"
+          - "horas_realizadas:decimal:max_digits=6:decimal_places=2:default=0.00"
+          - "data_limite:date:null"
+          - "tags:json:default=[]"
+          - "ordem:int:default=0"
+        resource_name: "tarefa"
+
+      - name: "ComentarioTarefa"
+        description: "Comentário de um usuário em uma tarefa"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "id:uuid:pk:auto"
+          - "tarefa:fk:Tarefa"
+          - "autor:fk:accounts.Usuario"
+          - "conteudo:text"
+        resource_name: "comentario"
+
+      - name: "RegistroHoras"
+        description: "Apontamento de horas trabalhadas com fluxo de aprovação pelo gestor"
+        fields:
+          - "id:uuid:pk:auto"
+          - "tarefa:fk:Tarefa"
+          - "colaborador:fk:accounts.Colaborador"
+          - "aprovador:fk:accounts.Usuario:null"
+          - "horas:decimal:max_digits=6:decimal_places=2"
+          - "data:date"
+          - "descricao:text:default=''"
+          - "status:str:max_length=20:choices=StatusRegistroHoras:default='pendente'"
+          - "data_aprovacao:datetime:null"
+          - "motivo_rejeicao:text:default=''"
+          - "created_at:datetime:auto_now_add"
+        resource_name: "registro_hora"
+
+      - name: "MarcoProjeto"
+        description: "Marco ou entrega relevante de um projeto com responsável e data-alvo"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "id:uuid:pk:auto"
+          - "projeto:fk:Projeto"
+          - "responsavel:fk:accounts.Colaborador:null"
+          - "titulo:str:max_length=255"
+          - "descricao:text:default=''"
+          - "data:date:null"
+          - "data_conclusao:date:null"
+          - "status:str:max_length=20:choices=StatusMarco:default='pendente'"
+          - "tipo:str:max_length=20:choices=TipoMarco:default='milestone'"
+          - "icone:str:max_length=50:default='flag'"
+        resource_name: "marco"
+
+
+  # ============================================
+  # TECHNICAL_PLANNING: PLANEJAMENTO TÉCNICO
+  # ============================================
+  - name: "technical_planning"
+    description: "Planejamentos técnicos de projetos: fases, requisitos, user stories, arquitetura e riscos"
+    models:
+      - name: "PlanejamentoProjeto"
+        description: "Documento de planejamento técnico gerado (geralmente por IA) para um projeto"
+        fields:
+          - "id:uuid:pk:auto"
+          - "projeto:o2o:projects.Projeto"
+          - "status:str:max_length=20:choices=StatusPlanejamento:default='rascunho'"
+          - "versao:smallint:default=1"
+          - "gerado_em:datetime:null"
+          - "gerado_por:fk:accounts.Usuario:null"
+          - "editado_em:datetime:null"
+          - "editado_por:fk:accounts.Usuario:null"
+          - "enviado_para_revisao_por:fk:accounts.Usuario:null"
+          - "aprovado_em:datetime:null"
+          - "aprovado_por:fk:accounts.Usuario:null"
+          - "observacoes:text:default=''"
+        resource_name: "planejamento"
+
+      - name: "HistoricoVersaoPlanejamento"
+        description: "Registro de ações e versões do planejamento técnico"
+        fields:
+          - "id:uuid:pk:auto"
+          - "planejamento:fk:PlanejamentoProjeto"
+          - "versao:smallint:default=1"
+          - "autor:fk:accounts.Usuario:null"
+          - "acao:str:max_length=30:choices=AcaoPlanejamento"
+          - "descricao:text:default=''"
+          - "data:datetime:auto_now_add"
+        resource_name: "historico_versao"
+
+      - name: "FaseProjeto"
+        description: "Fase do plano de trabalho com cronograma, responsáveis e dependências"
+        fields:
+          - "id:uuid:pk:auto"
+          - "planejamento:fk:PlanejamentoProjeto"
+          - "nome:str:max_length=255"
+          - "descricao:text:default=''"
+          - "ordem:smallint:default=1"
+          - "data_inicio:date:null"
+          - "data_fim:date:null"
+          - "horas_estimadas:decimal:max_digits=8:decimal_places=2:default=0.00"
+          - "status:str:max_length=20:choices=StatusFase:default='pendente'"
+          - "responsaveis:m2m:accounts.Colaborador"
+          - "dependencias:m2m:self"
+        resource_name: "fase"
+
+      - name: "MarcoPlano"
+        description: "Marco do plano técnico associado a uma fase"
+        fields:
+          - "id:uuid:pk:auto"
+          - "planejamento:fk:PlanejamentoProjeto"
+          - "fase:fk:FaseProjeto:null"
+          - "titulo:str:max_length=255"
+          - "descricao:text:default=''"
+          - "data_prevista:date:null"
+        resource_name: "marco_plano"
+
+      - name: "MarcoPlanoEntregavel"
+        description: "Entregável textual de um marco do plano técnico"
+        fields:
+          - "id:uuid:pk:auto"
+          - "marco_plano:fk:MarcoPlano"
+          - "descricao:text"
+        resource_name: "entregavel"
+
+      - name: "RequisitoSistema"
+        description: "Container que agrupa todos os requisitos de um planejamento"
+        fields:
+          - "id:uuid:pk:auto"
+          - "planejamento:o2o:PlanejamentoProjeto"
+        resource_name: "requisito_sistema"
+
+      - name: "RequisitoFuncional"
+        description: "Requisito funcional (RF) com código, descrição e prioridade"
+        fields:
+          - "id:uuid:pk:auto"
+          - "requisito_sistema:fk:RequisitoSistema"
+          - "user_story:fk:UserStory:null"
+          - "codigo:str:max_length=20"
+          - "titulo:str:max_length=255"
+          - "descricao:text:default=''"
+          - "prioridade:str:max_length=20:choices=PrioridadeRequisito:default='media'"
+        resource_name: "requisito_funcional"
+
+      - name: "RfCriterioAceitacao"
+        description: "Critério de aceitação de um requisito funcional"
+        fields:
+          - "id:uuid:pk:auto"
+          - "requisito_funcional:fk:RequisitoFuncional"
+          - "criterio:text"
+        resource_name: "rf_criterio"
+
+      - name: "RequisitoNaoFuncional"
+        description: "Requisito não-funcional (RNF) com categoria e métrica"
+        fields:
+          - "id:uuid:pk:auto"
+          - "requisito_sistema:fk:RequisitoSistema"
+          - "codigo:str:max_length=20"
+          - "titulo:str:max_length=255"
+          - "descricao:text:default=''"
+          - "categoria:str:max_length=30:choices=CategoriaRNF"
+          - "metrica:str:max_length=255:default=''"
+          - "prioridade:str:max_length=20:choices=PrioridadeRequisito:default='media'"
+        resource_name: "requisito_nao_funcional"
+
+      - name: "UserStory"
+        description: "User story no formato Persona / Ação / Benefício com critérios de aceitação"
+        fields:
+          - "id:uuid:pk:auto"
+          - "requisito_sistema:fk:RequisitoSistema"
+          - "codigo:str:max_length=20"
+          - "persona:text"
+          - "acao:text"
+          - "beneficio:text"
+          - "prioridade:str:max_length=20:choices=PrioridadeRequisito:default='media'"
+          - "requisitos:m2m:RequisitoFuncional"
+        resource_name: "user_story"
+
+      - name: "UsCriterioAceitacao"
+        description: "Critério de aceitação de uma user story"
+        fields:
+          - "id:uuid:pk:auto"
+          - "user_story:fk:UserStory"
+          - "criterio:text"
+        resource_name: "us_criterio"
+
+      - name: "CasoUso"
+        description: "Caso de uso com ator principal e fluxos alternativos"
+        fields:
+          - "id:uuid:pk:auto"
+          - "requisito_sistema:fk:RequisitoSistema"
+          - "codigo:str:max_length=20"
+          - "titulo:str:max_length=255"
+          - "ator_principal:str:max_length=100:default=''"
+        resource_name: "caso_uso"
+
+      - name: "CasoUsoFluxoAlternativo"
+        description: "Fluxo alternativo de um caso de uso com condição de ativação"
+        fields:
+          - "id:uuid:pk:auto"
+          - "caso_uso:fk:CasoUso"
+          - "condicao:text"
+        resource_name: "fluxo_alternativo"
+
+      - name: "CasoUsoFluxoPasso"
+        description: "Passo ordenado de um fluxo alternativo"
+        fields:
+          - "id:uuid:pk:auto"
+          - "fluxo_alternativo:fk:CasoUsoFluxoAlternativo"
+          - "passo:text"
+          - "ordem:smallint:default=1"
+        resource_name: "fluxo_passo"
+
+      - name: "RegraNegocio"
+        description: "Regra de negócio documentada com código e módulo de pertencimento"
+        fields:
+          - "id:uuid:pk:auto"
+          - "requisito_sistema:fk:RequisitoSistema"
+          - "codigo:str:max_length=20"
+          - "titulo:str:max_length=255"
+          - "descricao:text:default=''"
+          - "modulo:str:max_length=50:default=''"
+        resource_name: "regra_negocio"
+
+      - name: "ArquiteturaTecnica"
+        description: "Decisões arquiteturais do projeto: stack, componentes, integrações e riscos"
+        fields:
+          - "id:uuid:pk:auto"
+          - "planejamento:o2o:PlanejamentoProjeto"
+          - "premissas:json:default=[]"
+          - "restricoes:json:default=[]"
+        resource_name: "arquitetura"
+
+      - name: "StackTecnologia"
+        description: "Tecnologia da stack do projeto com camada e justificativa de escolha"
+        fields:
+          - "id:uuid:pk:auto"
+          - "arquitetura:fk:ArquiteturaTecnica"
+          - "nome:str:max_length=100"
+          - "versao:str:max_length=50:default=''"
+          - "categoria:str:max_length=50:default=''"
+          - "camada:str:max_length=50:default=''"
+          - "justificativa:text:default=''"
+        resource_name: "stack_tecnologia"
+
+      - name: "ComponenteArquitetura"
+        description: "Componente técnico da arquitetura com dependências entre componentes"
+        fields:
+          - "id:uuid:pk:auto"
+          - "arquitetura:fk:ArquiteturaTecnica"
+          - "nome:str:max_length=100"
+          - "tipo:str:max_length=50:default=''"
+          - "descricao:text:default=''"
+          - "dependencias:m2m:self"
+        resource_name: "componente"
+
+      - name: "Integracao"
+        description: "Integração externa documentada na arquitetura técnica"
+        fields:
+          - "id:uuid:pk:auto"
+          - "arquitetura:fk:ArquiteturaTecnica"
+          - "nome:str:max_length=100"
+          - "tipo:str:max_length=50:default=''"
+          - "descricao:text:default=''"
+          - "endpoint:str:max_length=500:default=''"
+          - "autenticacao:str:max_length=50:default=''"
+        resource_name: "integracao"
+
+      - name: "RiscoTecnico"
+        description: "Risco técnico identificado na arquitetura com severidade, probabilidade e mitigação"
+        fields:
+          - "id:uuid:pk:auto"
+          - "arquitetura:fk:ArquiteturaTecnica"
+          - "titulo:str:max_length=255"
+          - "descricao:text:default=''"
+          - "severidade:str:max_length=10:choices=SeveridadeRisco:default='media'"
+          - "probabilidade:str:max_length=10:choices=ProbabilidadeRisco:default='media'"
+          - "impacto:text:default=''"
+          - "mitigacao:text:default=''"
+        resource_name: "risco"
+
+
+  # ============================================
+  # PRODUCTS: PRODUTOS
+  # ============================================
+  - name: "products"
+    description: "Produtos resultantes de projetos aprovados, com gestão de operação e clientes"
+    models:
+      - name: "Produto"
+        description: "Produto gerado a partir de um projeto, com CAPEX consolidado e operação contínua"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "id:uuid:pk:auto"
+          - "empresa_dona:fk:core.Empresa:null"
+          - "projeto_origem:fk:projects.Projeto:null"
+          - "responsavel_operacao:fk:accounts.Colaborador:null"
+          - "nome:str:max_length=255"
+          - "descricao:text:default=''"
+          - "status:str:max_length=20:choices=StatusProduto:default='ativo'"
+          - "classificacao:str:max_length=20:null:choices=ClassificacaoProduto"
+          - "custo_desenvolvimento:decimal:max_digits=14:decimal_places=2:default=0.00"
+          - "custo_operacao_mensal:decimal:max_digits=14:decimal_places=2:default=0.00"
+          - "data_lancamento:date:null"
+          - "clientes:m2m:clients.Cliente"
+        resource_name: "produto"
+
+
+  # ============================================
+  # CONFIGS: CONFIGURAÇÕES & FORMULÁRIOS
+  # ============================================
+  - name: "configs"
+    description: "Configurações de Kanban por empresa e formulários customizáveis de demandas"
+    models:
+      - name: "KanbanEmpresaConfig"
+        description: "Configuração do Kanban de demandas por empresa (etapas visíveis, títulos e ordem)"
+        fields:
+          - "id:uuid:pk:auto"
+          - "empresa:o2o:core.Empresa"
+          - "updated_at:datetime:auto_now"
+        resource_name: "kanban_config"
+
+      - name: "KanbanEtapaConfig"
+        description: "Visibilidade, título customizado e ordem de cada etapa no Kanban de uma empresa"
+        fields:
+          - "id:uuid:pk:auto"
+          - "kanban_config:fk:KanbanEmpresaConfig"
+          - "etapa:str:max_length=50:choices=EtapaDemanda"
+          - "titulo:str:max_length=100:default=''"
+          - "visivel:bool:default=True"
+          - "ordem:smallint:default=1"
+        constraints:
+          - "unique_together: [kanban_config, etapa]"
+        resource_name: "kanban_etapa"
+
+      - name: "FormularioEmpresa"
+        description: "Formulário customizável por empresa exibido durante criação de demandas"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "id:uuid:pk:auto"
+          - "empresa:fk:core.Empresa"
+          - "titulo:str:max_length=255"
+          - "descricao:text:default=''"
+          - "ativo:bool:default=True"
+        resource_name: "formulario"
+
+      - name: "CampoFormulario"
+        description: "Campo dinâmico de um formulário customizável"
+        fields:
+          - "id:uuid:pk:auto"
+          - "formulario:fk:FormularioEmpresa"
+          - "label:str:max_length=100"
+          - "tipo:str:max_length=30:choices=TipoCampoFormulario"
+          - "obrigatorio:bool:default=False"
+          - "placeholder:str:max_length=255:default=''"
+          - "descricao:text:default=''"
+          - "ordem:smallint:default=1"
+        resource_name: "campo"
+
+      - name: "CampoFormularioOpcao"
+        description: "Opção de seleção para campos do tipo seleção ou múltipla escolha"
+        fields:
+          - "id:uuid:pk:auto"
+          - "campo:fk:CampoFormulario"
+          - "opcao:str:max_length=255"
+          - "ordem:smallint:default=1"
+        resource_name: "campo_opcao"
+
+
+  # ============================================
+  # NOTIFICATIONS: NOTIFICAÇÕES
+  # ============================================
+  - name: "notifications"
+    description: "Notificações in-app enviadas a usuários sobre eventos do sistema"
+    models:
+      - name: "Notificacao"
+        description: "Notificação entregue a um usuário sobre demanda, projeto ou tarefa"
+        fields:
+          - "id:uuid:pk:auto"
+          - "tenant:fk:core.Tenant"
+          - "usuario:fk:accounts.Usuario"
+          - "tipo:str:max_length=40:choices=TipoNotificacao"
+          - "categoria:str:max_length=20:choices=CategoriaNotificacao"
+          - "titulo:str:max_length=255"
+          - "mensagem:text:default=''"
+          - "lida:bool:default=False"
+          - "link:str:max_length=500:null"
+          - "entidade_id:uuid:null"
+          - "created_at:datetime:auto_now_add"
+        resource_name: "notificacao"
+
+
+  # ============================================
+  # AUDIT: AUDITORIA
+  # ============================================
+  - name: "audit"
+    description: "Log imutável de ações sensíveis de usuários sobre entidades do sistema"
+    models:
+      - name: "LogAuditoria"
+        description: "Registro de auditoria com dados anteriores/novos, IP e agente do usuário"
+        fields:
+          - "id:uuid:pk:auto"
+          - "tenant:fk:core.Tenant"
+          - "usuario:fk:accounts.Usuario:null"
+          - "entidade_tipo:str:max_length=100:default=''"
+          - "entidade_id:uuid:null"
+          - "acao:str:max_length=20:choices=AcaoAuditoria"
+          - "permissao_verificada:str:max_length=100:default=''"
+          - "dados_anteriores:json:null"
+          - "dados_novos:json:null"
+          - "ip:str:max_length=45:default=''"
+          - "user_agent:text:default=''"
+          - "dispositivo:str:max_length=100:default=''"
+          - "created_at:datetime:auto_now_add"
+        resource_name: "log_auditoria"
+
+
+# ============================================
+# CHOICES (Enums)
+# ============================================
+choices:
+  # ----------------------
+  # Usuários & Perfis
+  # ----------------------
+  - name: "PerfilUsuario"
+    type: "TextChoices"
+    values:
+      - "ADMIN:admin:Administrador"
+      - "GESTOR_INOVACAO:gestor_inovacao:Gestor de Inovação"
+      - "ANALISTA_INOVACAO:analista_inovacao:Analista de Inovação"
+      - "ASSISTENTE_INOVACAO:assistente_inovacao:Assistente de Inovação"
+      - "PRODUCT_OWNER:product_owner:Product Owner"
+      - "ESPECIALISTA:especialista:Especialista Multidisciplinar"
+      - "CLIENTE:cliente:Cliente"
+      - "COMERCIAL:comercial:Comercial"
+
+  - name: "SenioridadeColaborador"
+    type: "TextChoices"
+    values:
+      - "TRAINEE:trainee:Trainee"
+      - "JUNIOR:junior:Júnior"
+      - "PLENO:pleno:Pleno"
+      - "SENIOR:senior:Sênior"
+      - "ESPECIALISTA:especialista:Especialista"
+
+  - name: "AreaEspecialidade"
+    type: "TextChoices"
+    values:
+      - "FRONTEND:frontend:Frontend"
+      - "BACKEND:backend:Backend"
+      - "FULLSTACK:fullstack:Fullstack"
+      - "DEVOPS:devops:DevOps"
+      - "MOBILE:mobile:Mobile"
+      - "DADOS:dados:Dados"
+      - "IA:ia:Inteligência Artificial"
+      - "UX_UI:ux_ui:UX/UI"
+      - "QA:qa:QA / Testes"
+      - "GESTAO:gestao:Gestão"
+
+  - name: "OrigemTecnologia"
+    type: "TextChoices"
+    values:
+      - "CURRICULO:curriculo:Currículo"
+      - "PROJETO:projeto:Projeto"
+      - "CERTIFICACAO:certificacao:Certificação"
+      - "DECLARADO:declarado:Declarado"
+
+  # ----------------------
+  # Clientes
+  # ----------------------
+  - name: "NaturezaJuridica"
+    type: "TextChoices"
+    values:
+      - "MEI:MEI:Microempreendedor Individual"
+      - "ME:ME:Microempresa"
+      - "EPP:EPP:Empresa de Pequeno Porte"
+      - "SA:SA:Sociedade Anônima"
+      - "LTDA:LTDA:Sociedade Limitada"
+      - "OUTROS:outros:Outros"
+
+  - name: "ModeloReceita"
+    type: "TextChoices"
+    values:
+      - "SUBSCRIPTION:subscription:Assinatura"
+      - "PROJETO:projeto:Por Projeto"
+      - "LICENCA:licenca:Licença"
+      - "SERVICO:servico:Serviço"
+      - "HIBRIDO:hibrido:Híbrido"
+
+  # ----------------------
+  # Demandas & Inovação
+  # ----------------------
+  - name: "EtapaDemanda"
+    type: "TextChoices"
+    values:
+      - "IDEIA_RECEBIDA:ideia_recebida:Ideia Recebida"
+      - "ANALISE_INICIAL:analise_inicial:Análise Inicial"
+      - "ANALISE_COMITE:analise_comite:Análise Comitê"
+      - "DEVOLUCAO_PROPONENTE:devolucao_proponente:Devolução Proponente"
+      - "READEQUACAO_RECEBIDA:readequacao_recebida:Readequação Recebida"
+      - "VALIDACAO_PROBLEMA:validacao_problema:Validação do Problema"
+      - "ENCAMINHADO_GT:encaminhado_gt:Encaminhado Grupo de Trabalho"
+      - "ARQUIVADO:arquivado:Arquivado"
+      - "FORA_ESTRATEGICO:fora_estrategico:Fora do Time Estratégico"
+      - "CONCLUIDO:concluido:Concluído"
+
+  - name: "EstagioIdeia"
+    type: "TextChoices"
+    values:
+      - "CONCEITO:conceito:Conceito"
+      - "EM_VALIDACAO:em_validacao:Em Validação"
+      - "PROTOTIPO:prototipo:Protótipo"
+      - "MVP:mvp:MVP"
+      - "PRONTO_ESCALA:pronto_escala:Pronto para Escala"
+
+  - name: "HorizonteInovacao"
+    type: "TextChoices"
+    values:
+      - "H1:h1:H1 — Curto Prazo"
+      - "H2:h2:H2 — Médio Prazo"
+      - "H3:h3:H3 — Longo Prazo"
+
+  # ----------------------
+  # Projetos & Execução
+  # ----------------------
+  - name: "StatusProjeto"
+    type: "TextChoices"
+    values:
+      - "AGUARDANDO_APROVACAO:aguardando_aprovacao:Aguardando Aprovação"
+      - "EM_EXECUCAO:em_execucao:Em Execução"
+      - "CONCLUIDO:concluido:Concluído"
+      - "CANCELADO:cancelado:Cancelado"
+
+  - name: "StatusSquad"
+    type: "TextChoices"
+    values:
+      - "EM_FORMACAO:em_formacao:Em Formação"
+      - "ATIVO:ativo:Ativo"
+      - "ENCERRADO:encerrado:Encerrado"
+
+  - name: "PapelAlocacao"
+    type: "TextChoices"
+    values:
+      - "TECH_LEAD:tech_lead:Tech Lead"
+      - "DEV:dev:Desenvolvedor"
+      - "PRODUCT_OWNER:product_owner:Product Owner"
+      - "UX_DESIGNER:ux_designer:UX Designer"
+      - "QA:qa:QA Engineer"
+      - "DEVOPS:devops:DevOps"
+      - "ANALISTA:analista:Analista"
+      - "GESTOR:gestor:Gestor"
+
+  - name: "StatusAlocacao"
+    type: "TextChoices"
+    values:
+      - "ATIVO:ativo:Ativo"
+      - "SUSPENSO:suspenso:Suspenso"
+      - "ENCERRADO:encerrado:Encerrado"
+
+  - name: "StatusSprint"
+    type: "TextChoices"
+    values:
+      - "PLANEJAMENTO:planejamento:Planejamento"
+      - "ATIVA:ativa:Ativa"
+      - "CONCLUIDA:concluida:Concluída"
+
+  - name: "StatusTarefa"
+    type: "TextChoices"
+    values:
+      - "PENDENTE:pendente:Pendente"
+      - "EM_PROGRESSO:em_progresso:Em Progresso"
+      - "CONCLUIDA:concluida:Concluída"
+      - "CANCELADA:cancelada:Cancelada"
+
+  - name: "PrioridadeTarefa"
+    type: "TextChoices"
+    values:
+      - "BAIXA:baixa:Baixa"
+      - "MEDIA:media:Média"
+      - "ALTA:alta:Alta"
+      - "URGENTE:urgente:Urgente"
+
+  - name: "StatusRegistroHoras"
+    type: "TextChoices"
+    values:
+      - "PENDENTE:pendente:Pendente"
+      - "APROVADO:aprovado:Aprovado"
+      - "REJEITADO:rejeitado:Rejeitado"
+
+  - name: "TipoMarco"
+    type: "TextChoices"
+    values:
+      - "KICKOFF:kickoff:Kickoff"
+      - "ENTREGA:entrega:Entrega"
+      - "REVISAO:revisao:Revisão"
+      - "MILESTONE:milestone:Milestone"
+      - "GATE:gate:Gate de Aprovação"
+
+  - name: "StatusMarco"
+    type: "TextChoices"
+    values:
+      - "PENDENTE:pendente:Pendente"
+      - "EM_PROGRESSO:em_progresso:Em Progresso"
+      - "CONCLUIDO:concluido:Concluído"
+      - "ATRASADO:atrasado:Atrasado"
+
+  # ----------------------
+  # Planejamento Técnico
+  # ----------------------
+  - name: "StatusPlanejamento"
+    type: "TextChoices"
+    values:
+      - "RASCUNHO:rascunho:Rascunho"
+      - "EM_REVISAO:em_revisao:Em Revisão"
+      - "APROVADO:aprovado:Aprovado"
+      - "PUBLICADO:publicado:Publicado"
+
+  - name: "AcaoPlanejamento"
+    type: "TextChoices"
+    values:
+      - "GERADO:gerado:Gerado"
+      - "EDITADO:editado:Editado"
+      - "ENVIADO_REVISAO:enviado_revisao:Enviado para Revisão"
+      - "APROVADO:aprovado:Aprovado"
+      - "PUBLICADO:publicado:Publicado"
+
+  - name: "StatusFase"
+    type: "TextChoices"
+    values:
+      - "PENDENTE:pendente:Pendente"
+      - "EM_ANDAMENTO:em_andamento:Em Andamento"
+      - "CONCLUIDA:concluida:Concluída"
+      - "ATRASADA:atrasada:Atrasada"
+
+  - name: "PrioridadeRequisito"
+    type: "TextChoices"
+    values:
+      - "CRITICA:critica:Crítica"
+      - "ALTA:alta:Alta"
+      - "MEDIA:media:Média"
+      - "BAIXA:baixa:Baixa"
+
+  - name: "CategoriaRNF"
+    type: "TextChoices"
+    values:
+      - "PERFORMANCE:performance:Performance"
+      - "SEGURANCA:seguranca:Segurança"
+      - "USABILIDADE:usabilidade:Usabilidade"
+      - "CONFIABILIDADE:confiabilidade:Confiabilidade"
+      - "ESCALABILIDADE:escalabilidade:Escalabilidade"
+      - "MANUTENCAO:manutencao:Manutenibilidade"
+
+  - name: "SeveridadeRisco"
+    type: "TextChoices"
+    values:
+      - "ALTA:alta:Alta"
+      - "MEDIA:media:Média"
+      - "BAIXA:baixa:Baixa"
+
+  - name: "ProbabilidadeRisco"
+    type: "TextChoices"
+    values:
+      - "ALTA:alta:Alta"
+      - "MEDIA:media:Média"
+      - "BAIXA:baixa:Baixa"
+
+  # ----------------------
+  # Produtos
+  # ----------------------
+  - name: "StatusProduto"
+    type: "TextChoices"
+    values:
+      - "ATIVO:ativo:Ativo"
+      - "EM_RENOVACAO:em_renovacao:Em Renovação"
+      - "ENCERRADO:encerrado:Encerrado"
+      - "CANCELADO:cancelado:Cancelado"
+
+  - name: "ClassificacaoProduto"
+    type: "TextChoices"
+    values:
+      - "SAAS:saas:SaaS"
+      - "INTERNO:interno:Interno"
+      - "PRODUTO_FISICO:produto_fisico:Produto Físico"
+      - "SERVICO:servico:Serviço"
+
+  # ----------------------
+  # Configurações
+  # ----------------------
+  - name: "TipoCampoFormulario"
+    type: "TextChoices"
+    values:
+      - "TEXTO:texto:Texto"
+      - "NUMERO:numero:Número"
+      - "DATA:data:Data"
+      - "SELECAO:selecao:Seleção"
+      - "MULTIPLA_ESCOLHA:multipla_escolha:Múltipla Escolha"
+
+  # ----------------------
+  # Notificações
+  # ----------------------
+  - name: "TipoNotificacao"
+    type: "TextChoices"
+    values:
+      - "DEMANDA_ATUALIZADA:demanda_atualizada:Demanda Atualizada"
+      - "ETAPA_ALTERADA:etapa_alterada:Etapa de Demanda Alterada"
+      - "PROJETO_ATUALIZADO:projeto_atualizado:Projeto Atualizado"
+      - "MARCO_PROXIMO:marco_proximo:Marco Próximo"
+      - "ALOCACAO_CRIADA:alocacao_criada:Alocação Criada"
+      - "SPRINT_INICIADA:sprint_iniciada:Sprint Iniciada"
+      - "TAREFA_ATRIBUIDA:tarefa_atribuida:Tarefa Atribuída"
+      - "HORA_APROVADA:hora_aprovada:Hora Aprovada"
+      - "HORA_REJEITADA:hora_rejeitada:Hora Rejeitada"
+
+  - name: "CategoriaNotificacao"
+    type: "TextChoices"
+    values:
+      - "DEMANDA:demanda:Demanda"
+      - "PROJETO:projeto:Projeto"
+      - "TAREFA:tarefa:Tarefa"
+
+  # ----------------------
+  # Auditoria
+  # ----------------------
+  - name: "AcaoAuditoria"
+    type: "TextChoices"
+    values:
+      - "CRIOU:criou:Criou"
+      - "ATUALIZOU:atualizou:Atualizou"
+      - "DELETOU:deletou:Deletou"
+      - "VISUALIZOU:visualizou:Visualizou"
+      - "EXPORTOU:exportou:Exportou"
+
+
+# ============================================
+# RBAC — PAPÉIS E PERMISSÕES
+# ============================================
+permissions:
+
+  # ------------------------------------------
+  # Definição dos papéis (roles) do sistema
+  # ------------------------------------------
+  roles:
+    - code: "admin"
+      name: "Administrador"
+      level: 100
+      description: "Acesso total ao sistema. Gerencia tenants, empresas, usuários e configurações."
+
+    - code: "gestor"
+      name: "Gestor de Projetos"
+      level: 70
+      description: "Gestão de projetos, squads, demandas e alocações. Aprova horas e planejamentos."
+
+    - code: "comite"
+      name: "Membro de Comitê"
+      level: 50
+      description: "Avalia e vota em demandas de inovação. Visualiza projetos e produtos."
+
+    - code: "colaborador"
+      name: "Colaborador"
+      level: 40
+      description: "Executa tarefas, registra horas, cria demandas e consulta projetos alocados."
+
+  # ------------------------------------------
+  # Permissões por módulo
+  # Formato: module.resource.action
+  # ------------------------------------------
+  module_permissions:
+    # =====================
+    # core
+    # =====================
+    - code: "core.tenant.list"
+      description: "Visualizar tenants do sistema"
+      roles: ["admin"]
+
+    - code: "core.tenant.manage"
+      description: "Criar, editar e desativar tenants"
+      roles: ["admin"]
+
+    - code: "core.empresa.list"
+      description: "Visualizar empresas do grupo econômico"
+      roles: ["admin", "gestor"]
+
+    - code: "core.empresa.create"
+      description: "Cadastrar nova empresa no tenant"
+      roles: ["admin"]
+
+    - code: "core.empresa.update"
+      description: "Editar dados de empresa"
+      roles: ["admin", "gestor"]
+
+    - code: "core.empresa.delete"
+      description: "Desativar empresa"
+      roles: ["admin"]
+
+    - code: "core.setor.list"
+      description: "Visualizar setores"
+      roles: ["admin", "gestor", "colaborador", "comite"]
+
+    - code: "core.setor.manage"
+      description: "Criar, editar e desativar setores"
+      roles: ["admin", "gestor"]
+
+    # =====================
+    # accounts
+    # =====================
+    - code: "accounts.usuario.list"
+      description: "Visualizar usuários do tenant"
+      roles: ["admin", "gestor"]
+
+    - code: "accounts.usuario.create"
+      description: "Criar conta de usuário"
+      roles: ["admin"]
+
+    - code: "accounts.usuario.update"
+      description: "Editar dados de usuário"
+      roles: ["admin", "gestor"]
+
+    - code: "accounts.usuario.delete"
+      description: "Desativar conta de usuário"
+      roles: ["admin"]
+
+    - code: "accounts.colaborador.list"
+      description: "Visualizar colaboradores"
+      roles: ["admin", "gestor", "comite"]
+
+    - code: "accounts.colaborador.create"
+      description: "Cadastrar colaborador"
+      roles: ["admin", "gestor"]
+
+    - code: "accounts.colaborador.update"
+      description: "Editar dados de colaborador"
+      roles: ["admin", "gestor"]
+
+    - code: "accounts.colaborador.delete"
+      description: "Desativar colaborador"
+      roles: ["admin"]
+
+    - code: "accounts.vinculo.manage"
+      description: "Gerenciar vínculos empregatícios (custo/hora, empresa, carga horária)"
+      roles: ["admin", "gestor"]
+
+    - code: "accounts.especialidade.list"
+      description: "Visualizar especialidades de colaboradores"
+      roles: ["admin", "gestor", "colaborador", "comite"]
+
+    - code: "accounts.especialidade.manage"
+      description: "Gerenciar especialidades e tecnologias do próprio perfil ou de qualquer colaborador"
+      roles: ["admin", "gestor", "colaborador"]
+
+    # =====================
+    # clients
+    # =====================
+    - code: "clients.cliente.list"
+      description: "Visualizar clientes"
+      roles: ["admin", "gestor", "comite"]
+
+    - code: "clients.cliente.create"
+      description: "Cadastrar cliente"
+      roles: ["admin", "gestor"]
+
+    - code: "clients.cliente.update"
+      description: "Editar dados de cliente"
+      roles: ["admin", "gestor"]
+
+    - code: "clients.cliente.delete"
+      description: "Desativar cliente"
+      roles: ["admin"]
+
+    # =====================
+    # innovation
+    # =====================
+    - code: "innovation.demanda.list"
+      description: "Visualizar demandas do pipeline de inovação"
+      roles: ["admin", "gestor", "colaborador", "comite"]
+
+    - code: "innovation.demanda.create"
+      description: "Submeter nova demanda ao pipeline"
+      roles: ["admin", "gestor", "colaborador", "comite"]
+
+    - code: "innovation.demanda.update"
+      description: "Editar dados de uma demanda"
+      roles: ["admin", "gestor"]
+
+    - code: "innovation.demanda.delete"
+      description: "Arquivar/excluir demanda"
+      roles: ["admin", "gestor"]
+
+    - code: "innovation.demanda.change_etapa"
+      description: "Avançar ou retroceder a etapa de uma demanda no pipeline"
+      roles: ["admin", "gestor", "comite"]
+
+    - code: "innovation.anexo.manage"
+      description: "Adicionar e remover anexos de demandas"
+      roles: ["admin", "gestor", "colaborador", "comite"]
+
+    - code: "innovation.historico_etapa.list"
+      description: "Visualizar histórico de transições de etapa de demandas"
+      roles: ["admin", "gestor", "colaborador", "comite"]
+
+    - code: "innovation.comite.list"
+      description: "Visualizar comitês e membros"
+      roles: ["admin", "gestor", "comite"]
+
+    - code: "innovation.comite.manage"
+      description: "Criar e editar comitês e definir membros"
+      roles: ["admin", "gestor"]
+
+    - code: "innovation.voto.create"
+      description: "Registrar voto em demanda pelo comitê"
+      roles: ["admin", "comite"]
+
+    - code: "innovation.voto.list"
+      description: "Visualizar votos do comitê"
+      roles: ["admin", "gestor", "comite"]
+
+    - code: "innovation.criterio.list"
+      description: "Visualizar critérios e perguntas de avaliação"
+      roles: ["admin", "gestor", "colaborador", "comite"]
+
+    - code: "innovation.criterio.manage"
+      description: "Gerenciar critérios, perguntas e opções de avaliação"
+      roles: ["admin"]
+
+    - code: "innovation.avaliacao.create"
+      description: "Responder avaliação de critérios de uma demanda"
+      roles: ["admin", "comite"]
+
+    - code: "innovation.avaliacao.list"
+      description: "Visualizar respostas de avaliação de demandas"
+      roles: ["admin", "gestor", "comite"]
+
+    # =====================
+    # projects
+    # =====================
+    - code: "projects.projeto.list"
+      description: "Visualizar projetos"
+      roles: ["admin", "gestor", "colaborador", "comite"]
+
+    - code: "projects.projeto.create"
+      description: "Criar projeto a partir de demanda aprovada"
+      roles: ["admin", "gestor"]
+
+    - code: "projects.projeto.update"
+      description: "Editar dados e status de projeto"
+      roles: ["admin", "gestor"]
+
+    - code: "projects.projeto.delete"
+      description: "Cancelar/excluir projeto"
+      roles: ["admin"]
+
+    - code: "projects.squad.list"
+      description: "Visualizar squads e composição"
+      roles: ["admin", "gestor", "colaborador"]
+
+    - code: "projects.squad.manage"
+      description: "Criar e editar squads"
+      roles: ["admin", "gestor"]
+
+    - code: "projects.alocacao.list"
+      description: "Visualizar alocações de colaboradores"
+      roles: ["admin", "gestor", "colaborador"]
+
+    - code: "projects.alocacao.manage"
+      description: "Criar, editar e encerrar alocações"
+      roles: ["admin", "gestor"]
+
+    - code: "projects.sprint.list"
+      description: "Visualizar sprints"
+      roles: ["admin", "gestor", "colaborador"]
+
+    - code: "projects.sprint.manage"
+      description: "Criar, iniciar e concluir sprints"
+      roles: ["admin", "gestor"]
+
+    - code: "projects.tarefa.list"
+      description: "Visualizar tarefas do projeto"
+      roles: ["admin", "gestor", "colaborador"]
+
+    - code: "projects.tarefa.create"
+      description: "Criar tarefa no projeto"
+      roles: ["admin", "gestor", "colaborador"]
+
+    - code: "projects.tarefa.update"
+      description: "Editar tarefa (status, prioridade, estimativa)"
+      roles: ["admin", "gestor", "colaborador"]
+
+    - code: "projects.tarefa.delete"
+      description: "Excluir tarefa"
+      roles: ["admin", "gestor"]
+
+    - code: "projects.comentario.manage"
+      description: "Comentar e editar próprios comentários em tarefas"
+      roles: ["admin", "gestor", "colaborador"]
+
+    - code: "projects.registro_hora.list"
+      description: "Visualizar registros de horas"
+      roles: ["admin", "gestor", "colaborador"]
+
+    - code: "projects.registro_hora.create"
+      description: "Registrar horas trabalhadas em tarefa"
+      roles: ["admin", "colaborador"]
+
+    - code: "projects.registro_hora.approve"
+      description: "Aprovar ou rejeitar registros de horas"
+      roles: ["admin", "gestor"]
+
+    - code: "projects.marco.list"
+      description: "Visualizar marcos do projeto"
+      roles: ["admin", "gestor", "colaborador", "comite"]
+
+    - code: "projects.marco.manage"
+      description: "Criar e editar marcos do projeto"
+      roles: ["admin", "gestor"]
+
+    # =====================
+    # technical_planning
+    # =====================
+    - code: "technical_planning.planejamento.list"
+      description: "Visualizar planejamentos técnicos de projetos"
+      roles: ["admin", "gestor", "colaborador"]
+
+    - code: "technical_planning.planejamento.create"
+      description: "Gerar planejamento técnico para um projeto"
+      roles: ["admin", "gestor"]
+
+    - code: "technical_planning.planejamento.update"
+      description: "Editar planejamento técnico (fases, requisitos, arquitetura)"
+      roles: ["admin", "gestor", "colaborador"]
+
+    - code: "technical_planning.planejamento.approve"
+      description: "Aprovar e publicar planejamento técnico"
+      roles: ["admin", "gestor"]
+
+    - code: "technical_planning.fase.list"
+      description: "Visualizar fases do plano técnico"
+      roles: ["admin", "gestor", "colaborador"]
+
+    - code: "technical_planning.fase.manage"
+      description: "Criar, editar e reordenar fases do plano técnico"
+      roles: ["admin", "gestor"]
+
+    - code: "technical_planning.requisito.list"
+      description: "Visualizar requisitos funcionais e não-funcionais"
+      roles: ["admin", "gestor", "colaborador"]
+
+    - code: "technical_planning.requisito.manage"
+      description: "Criar e editar requisitos, user stories e casos de uso"
+      roles: ["admin", "gestor"]
+
+    - code: "technical_planning.arquitetura.list"
+      description: "Visualizar arquitetura técnica, stack e componentes"
+      roles: ["admin", "gestor", "colaborador"]
+
+    - code: "technical_planning.arquitetura.manage"
+      description: "Criar e editar arquitetura técnica, stack, componentes e integrações"
+      roles: ["admin", "gestor"]
+
+    - code: "technical_planning.risco.list"
+      description: "Visualizar riscos técnicos identificados"
+      roles: ["admin", "gestor", "colaborador"]
+
+    - code: "technical_planning.risco.manage"
+      description: "Cadastrar e atualizar riscos técnicos e mitigações"
+      roles: ["admin", "gestor"]
+
+    # =====================
+    # products
+    # =====================
+    - code: "products.produto.list"
+      description: "Visualizar produtos do portfólio"
+      roles: ["admin", "gestor", "colaborador", "comite"]
+
+    - code: "products.produto.create"
+      description: "Registrar produto originado de projeto"
+      roles: ["admin", "gestor"]
+
+    - code: "products.produto.update"
+      description: "Editar dados e status de produto"
+      roles: ["admin", "gestor"]
+
+    - code: "products.produto.delete"
+      description: "Encerrar/cancelar produto"
+      roles: ["admin"]
+
+    # =====================
+    # configs
+    # =====================
+    - code: "configs.kanban_config.list"
+      description: "Visualizar configuração do Kanban de demandas da empresa"
+      roles: ["admin", "gestor"]
+
+    - code: "configs.kanban_config.manage"
+      description: "Configurar etapas visíveis, títulos e ordem do Kanban de demandas"
+      roles: ["admin"]
+
+    - code: "configs.formulario.list"
+      description: "Visualizar formulários customizáveis de demandas"
+      roles: ["admin", "gestor"]
+
+    - code: "configs.formulario.manage"
+      description: "Criar e editar formulários e campos customizáveis"
+      roles: ["admin", "gestor"]
+
+    # =====================
+    # notifications
+    # =====================
+    - code: "notifications.notificacao.list"
+      description: "Visualizar próprias notificações"
+      roles: ["admin", "gestor", "colaborador", "comite"]
+
+    - code: "notifications.notificacao.mark_read"
+      description: "Marcar notificações como lidas"
+      roles: ["admin", "gestor", "colaborador", "comite"]
+
+    - code: "notifications.notificacao.send"
+      description: "Disparar notificação manualmente para usuários"
+      roles: ["admin"]
+
+    # =====================
+    # audit
+    # =====================
+    - code: "audit.log_auditoria.list"
+      description: "Visualizar logs de auditoria do sistema"
+      roles: ["admin"]
+
+    - code: "audit.log_auditoria.export"
+      description: "Exportar logs de auditoria"
+      roles: ["admin"]

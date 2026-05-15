@@ -1,5 +1,5 @@
-import { v4 as uuidv4 } from "uuid";
 import type { Empresa } from "@/interfaces/empresa.interface";
+import type { KanbanEmpresaConfig } from "@/interfaces/kanban-config.interface";
 import type {
   Colaborador,
   EspecialidadeColaborador,
@@ -29,6 +29,7 @@ import type {
   PapelAlocacao,
   StatusAlocacao,
 } from "@/interfaces/alocacao.interface";
+import type { RespostaAvaliacao } from "@/interfaces/avaliacao-demanda.interface";
 
 const now = new Date();
 const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -36,43 +37,60 @@ const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 const sixMonthsAhead = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000);
 
 // IDs fixos para referências
-const empresaIds = {
-  alpha: uuidv4(),
-  beta: uuidv4(),
-  gama: uuidv4(),
+export const empresaIds = {
+  alpha: "empresa-alpha-001",
+  beta: "empresa-beta-002",
+  gama: "empresa-gama-003",
 };
 
 const clienteIds = {
-  varejoABC: uuidv4(),
-  techCorp: uuidv4(),
-  prefeitura: uuidv4(),
-  internoAlpha: uuidv4(),
-  internoBeta: uuidv4(),
+  varejoABC: "cliente-varejo-abc-001",
+  techCorp: "cliente-tech-corp-002",
+  prefeitura: "cliente-prefeitura-sp-003",
+  internoAlpha: "cliente-interno-alpha-004",
+  internoBeta: "cliente-interno-beta-005",
 };
 
-const colaboradorIds: Record<string, string> = {};
-for (let i = 1; i <= 18; i++) {
-  colaboradorIds[`colab${i}`] = uuidv4();
-}
+const colaboradorIds: Record<string, string> = {
+  colab1:  "colaborador-001",
+  colab2:  "colaborador-002",
+  colab3:  "colaborador-003",
+  colab4:  "colaborador-004",
+  colab5:  "colaborador-005",
+  colab6:  "colaborador-006",
+  colab7:  "colaborador-007",
+  colab8:  "colaborador-008",
+  colab9:  "colaborador-009",
+  colab10: "colaborador-010",
+  colab11: "colaborador-011",
+  colab12: "colaborador-012",
+  colab13: "colaborador-013",
+  colab14: "colaborador-014",
+  colab15: "colaborador-015",
+  colab16: "colaborador-016",
+  colab17: "colaborador-017",
+  colab18: "colaborador-018",
+};
 
-const demandaIds = {
-  demanda1: uuidv4(),
-  demanda2: uuidv4(),
-  demanda3: uuidv4(),
+// IDs fixos para garantir consistência entre demandas e avaliações
+export const demandaIds = {
+  demanda1: "demanda-app-mobile-varejo-001",
+  demanda2: "demanda-gestao-contratos-techcorp-002",
+  demanda3: "demanda-portal-transparencia-003",
 };
 
 const projetoIds = {
-  projeto1: uuidv4(),
-  projeto2: uuidv4(),
+  projeto1: "projeto-app-varejo-abc-001",
+  projeto2: "projeto-gestao-contratos-002",
 };
 
 const produtoIds = {
-  produto1: uuidv4(),
+  produto1: "produto-sgp-001",
 };
 
 const squadIds = {
-  squad1: uuidv4(),
-  squad2: uuidv4(),
+  squad1: "squad-varejo-abc-001",
+  squad2: "squad-sustentacao-sgp-002",
 };
 
 // Empresas do grupo
@@ -81,9 +99,13 @@ export const mockEmpresas: Empresa[] = [
     id: empresaIds.alpha,
     nome: "Alpha Tecnologia",
     cnpj: "12.345.678/0001-90",
+    email: "contato@alphatecnologia.com.br",
+    telefone: "(11) 3000-1000",
     descricao:
       "Empresa principal do grupo, focada em desenvolvimento de software",
     ativa: true,
+    formularioTipo: "inovacao",
+    setor: "Tecnologia da Informação",
     createdAt: threeMonthsAgo,
     updatedAt: now,
   },
@@ -91,9 +113,13 @@ export const mockEmpresas: Empresa[] = [
     id: empresaIds.beta,
     nome: "Beta Solutions",
     cnpj: "23.456.789/0001-01",
+    email: "contato@betasolutions.com.br",
+    telefone: "(11) 3000-2000",
     descricao:
-      "Especializada em consultoria e projetos de transformação digital",
+      "Especializada em automação, digitalização e ganhos de produtividade",
     ativa: true,
+    formularioTipo: "operacional",
+    setor: "Transformação Digital",
     createdAt: threeMonthsAgo,
     updatedAt: now,
   },
@@ -101,8 +127,12 @@ export const mockEmpresas: Empresa[] = [
     id: empresaIds.gama,
     nome: "Gama Labs",
     cnpj: "34.567.890/0001-12",
+    email: "contato@gamalabs.com.br",
+    telefone: "(11) 3000-3000",
     descricao: "Centro de inovação e P&D do grupo",
     ativa: true,
+    formularioTipo: "estrategico",
+    setor: "Pesquisa & Desenvolvimento",
     createdAt: threeMonthsAgo,
     updatedAt: now,
   },
@@ -152,6 +182,10 @@ export const mockClientes: Cliente[] = [
     id: clienteIds.internoAlpha,
     nome: "Alpha Tecnologia (Interno)",
     origem: "interno" as OrigemCliente,
+    empresaId: empresaIds.alpha,
+    cnpj: "12.345.678/0001-90",
+    email: "contato@alphatecnologia.com.br",
+    telefone: "(11) 3000-1000",
     modeloReceita: "rateio_custo" as ModeloReceita,
     ativo: true,
     createdAt: threeMonthsAgo,
@@ -161,6 +195,10 @@ export const mockClientes: Cliente[] = [
     id: clienteIds.internoBeta,
     nome: "Beta Solutions (Interno)",
     origem: "interno" as OrigemCliente,
+    empresaId: empresaIds.beta,
+    cnpj: "23.456.789/0001-01",
+    email: "contato@betasolutions.com.br",
+    telefone: "(11) 3000-2000",
     modeloReceita: "rateio_custo" as ModeloReceita,
     ativo: true,
     createdAt: threeMonthsAgo,
@@ -168,19 +206,21 @@ export const mockClientes: Cliente[] = [
   },
 ];
 
-// Especialidades com a nova estrutura (area, senioridade, tecnologias)
+// Especialidades com a nova estrutura (area, senioridade, frameworkPrincipal, tecnologias)
 const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
   // Colab 1 - Arquiteto de Software
   [
     {
       area: "backend",
       senioridade: "senior",
-      tecnologias: ["nodejs", "python", "postgresql", "docker", "aws"],
+      frameworkPrincipal: "nestjs",
+      tecnologias: ["nodejs", "python", "postgresql", "docker", "aws", "apollo", "socket_io", "jsonwebtoken", "winston"],
     },
     {
       area: "arquitetura",
       senioridade: "senior",
-      tecnologias: ["aws", "kubernetes", "kafka", "mongodb"],
+      frameworkPrincipal: "aws",
+      tecnologias: ["kubernetes", "kafka", "mongodb", "terraform", "grpc", "apollo"],
     },
   ],
   // Colab 2 - UX Designer
@@ -188,12 +228,14 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "ux_ui",
       senioridade: "pleno",
-      tecnologias: ["figma", "adobe_xd", "html_css"],
+      frameworkPrincipal: "figma",
+      tecnologias: ["adobe_xd", "html_css", "framer_motion"],
     },
     {
       area: "frontend",
       senioridade: "junior",
-      tecnologias: ["react", "tailwind", "javascript"],
+      frameworkPrincipal: "react",
+      tecnologias: ["tailwind", "javascript", "radix_ui", "axios"],
     },
   ],
   // Colab 3 - Desenvolvedor Fullstack
@@ -201,7 +243,8 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "fullstack",
       senioridade: "senior",
-      tecnologias: ["react", "nextjs", "nodejs", "typescript", "postgresql"],
+      frameworkPrincipal: "nextjs",
+      tecnologias: ["react", "nodejs", "typescript", "postgresql", "tanstack_query", "axios", "socket_io", "jsonwebtoken"],
     },
   ],
   // Colab 4 - Desenvolvedor Mobile
@@ -209,7 +252,8 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "mobile",
       senioridade: "pleno",
-      tecnologias: ["react_native", "expo", "typescript", "kotlin"],
+      frameworkPrincipal: "react_native",
+      tecnologias: ["expo", "typescript", "kotlin", "axios", "tanstack_query"],
     },
   ],
   // Colab 5 - Engenheiro DevOps
@@ -217,12 +261,14 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "devops",
       senioridade: "senior",
-      tecnologias: ["docker", "kubernetes", "terraform", "aws", "github_actions"],
+      frameworkPrincipal: "kubernetes",
+      tecnologias: ["docker", "terraform", "aws", "github_actions", "prometheus", "grafana", "boto3", "checkov"],
     },
     {
       area: "cloud",
       senioridade: "senior",
-      tecnologias: ["aws", "azure", "gcp"],
+      frameworkPrincipal: "aws",
+      tecnologias: ["azure", "gcp", "terraform", "boto3", "inspec"],
     },
   ],
   // Colab 6 - Cientista de Dados
@@ -230,12 +276,14 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "dados",
       senioridade: "especialista",
-      tecnologias: ["python", "spark", "airflow", "sql", "databricks"],
+      frameworkPrincipal: "spark",
+      tecnologias: ["python", "airflow", "sql", "databricks", "kafka", "matplotlib", "scipy"],
     },
     {
       area: "ia_ml",
       senioridade: "pleno",
-      tecnologias: ["pytorch", "scikit_learn", "pandas", "numpy"],
+      frameworkPrincipal: "pytorch",
+      tecnologias: ["scikit_learn", "pandas", "numpy", "langchain", "spacy", "nltk", "huggingface"],
     },
   ],
   // Colab 7 - Analista de QA
@@ -243,7 +291,8 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "qa",
       senioridade: "pleno",
-      tecnologias: ["cypress", "jest", "playwright", "postman"],
+      frameworkPrincipal: "cypress",
+      tecnologias: ["jest", "playwright", "postman", "appium", "faker_js", "msw", "sinon", "chai"],
     },
   ],
   // Colab 8 - Product Owner
@@ -251,7 +300,8 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "frontend",
       senioridade: "pleno",
-      tecnologias: ["figma", "html_css"],
+      frameworkPrincipal: "react",
+      tecnologias: ["html_css", "tailwind", "axios", "date_fns"],
       tecnologiasCustom: ["Jira", "Confluence"],
     },
   ],
@@ -260,7 +310,8 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "devops",
       senioridade: "pleno",
-      tecnologias: ["github_actions", "gitlab_ci"],
+      frameworkPrincipal: "github_actions",
+      tecnologias: ["gitlab_ci", "docker", "checkov", "inspec"],
       tecnologiasCustom: ["Jira", "Miro"],
     },
   ],
@@ -269,7 +320,8 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "backend",
       senioridade: "junior",
-      tecnologias: ["nodejs", "express", "typescript", "postgresql"],
+      frameworkPrincipal: "express",
+      tecnologias: ["nodejs", "typescript", "postgresql", "jsonwebtoken", "bcrypt", "winston", "lodash"],
     },
   ],
   // Colab 11 - Desenvolvedor Frontend
@@ -277,7 +329,8 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "frontend",
       senioridade: "pleno",
-      tecnologias: ["react", "nextjs", "tailwind", "typescript", "zustand"],
+      frameworkPrincipal: "nextjs",
+      tecnologias: ["react", "tailwind", "typescript", "zustand", "tanstack_query", "radix_ui", "shadcn_ui", "axios", "date_fns"],
     },
   ],
   // Colab 12 - Desenvolvedor Fullstack
@@ -285,12 +338,14 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "fullstack",
       senioridade: "senior",
-      tecnologias: ["react", "nodejs", "typescript", "mongodb"],
+      frameworkPrincipal: "react",
+      tecnologias: ["nodejs", "typescript", "mongodb", "tanstack_query", "axios", "socket_io", "jsonwebtoken"],
     },
     {
       area: "mobile",
       senioridade: "pleno",
-      tecnologias: ["react_native", "expo"],
+      frameworkPrincipal: "react_native",
+      tecnologias: ["expo", "typescript", "axios"],
     },
   ],
   // Colab 13 - Engenheiro DevOps
@@ -298,7 +353,8 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "devops",
       senioridade: "pleno",
-      tecnologias: ["docker", "kubernetes", "aws", "terraform"],
+      frameworkPrincipal: "terraform",
+      tecnologias: ["docker", "kubernetes", "aws", "grafana", "prometheus", "boto3", "checkov", "inspec"],
     },
   ],
   // Colab 14 - UX/UI Designer
@@ -306,7 +362,8 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "ux_ui",
       senioridade: "junior",
-      tecnologias: ["figma", "sketch", "photoshop"],
+      frameworkPrincipal: "figma",
+      tecnologias: ["sketch", "photoshop", "illustrator", "framer_motion"],
     },
   ],
   // Colab 15 - Engenheiro de Dados
@@ -314,12 +371,14 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "dados",
       senioridade: "senior",
-      tecnologias: ["python", "spark", "airflow", "dbt", "snowflake", "kafka"],
+      frameworkPrincipal: "airflow",
+      tecnologias: ["python", "spark", "dbt", "snowflake", "kafka", "powerbi", "matplotlib", "scipy"],
     },
     {
       area: "backend",
       senioridade: "pleno",
-      tecnologias: ["python", "fastapi", "postgresql"],
+      frameworkPrincipal: "fastapi",
+      tecnologias: ["python", "postgresql", "sqlalchemy", "psycopg2", "alembic"],
     },
   ],
   // Colab 16 - Desenvolvedor Frontend
@@ -327,7 +386,8 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "frontend",
       senioridade: "junior",
-      tecnologias: ["react", "javascript", "html_css", "tailwind"],
+      frameworkPrincipal: "react",
+      tecnologias: ["javascript", "html_css", "tailwind", "redux", "axios", "dayjs"],
     },
   ],
   // Colab 17 - QA Engineer
@@ -335,12 +395,14 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "qa",
       senioridade: "pleno",
-      tecnologias: ["selenium", "cypress", "jest", "pytest"],
+      frameworkPrincipal: "playwright",
+      tecnologias: ["selenium", "cypress", "jest", "pytest", "faker_js", "chai", "sinon", "msw"],
     },
     {
       area: "devops",
       senioridade: "junior",
-      tecnologias: ["docker", "github_actions"],
+      frameworkPrincipal: "github_actions",
+      tecnologias: ["docker", "checkov"],
     },
   ],
   // Colab 18 - Tech Lead
@@ -348,12 +410,14 @@ const especialidadesDistribuidas: EspecialidadeColaborador[][] = [
     {
       area: "arquitetura",
       senioridade: "lider",
-      tecnologias: ["aws", "kubernetes", "kafka", "postgresql", "redis"],
+      frameworkPrincipal: "aws",
+      tecnologias: ["kubernetes", "kafka", "postgresql", "redis", "terraform", "grpc", "apollo"],
     },
     {
       area: "backend",
       senioridade: "senior",
-      tecnologias: ["nodejs", "python", "go", "typescript"],
+      frameworkPrincipal: "nestjs",
+      tecnologias: ["nodejs", "python", "go", "typescript", "passport_js", "jsonwebtoken", "socket_io", "winston"],
     },
   ],
 ];
@@ -422,11 +486,18 @@ const getCustoHoraBase = (especialidades: EspecialidadeColaborador[]): number =>
   return custoBase[maiorSenioridade];
 };
 
+// Distribuição de empresas por colaborador (N para N: alguns pertencem a mais de uma)
+const getEmpresaIdsForColab = (index: number): string[] => {
+  const primary = [empresaIds.alpha, empresaIds.beta, empresaIds.gama][index % 3];
+  // alguns colaboradores pertencem a mais de uma empresa (ex: índices múltiplos de 5)
+  if (index % 5 === 0 && index > 0) {
+    const secondary = [empresaIds.alpha, empresaIds.beta, empresaIds.gama][(index + 1) % 3];
+    return [primary, secondary];
+  }
+  return [primary];
+};
+
 export const mockColaboradores: Colaborador[] = nomes.map((nome, index) => {
-  const empresaIndex = index % 3;
-  const empresaId = [empresaIds.alpha, empresaIds.beta, empresaIds.gama][
-    empresaIndex
-  ];
   const especialidades = especialidadesDistribuidas[index];
   const custoBase = getCustoHoraBase(especialidades);
 
@@ -435,7 +506,8 @@ export const mockColaboradores: Colaborador[] = nomes.map((nome, index) => {
     nome,
     email: `${nome.toLowerCase().replace(" ", ".")}@grupo.com.br`,
     matricula: `MAT${String(index + 1).padStart(4, "0")}`,
-    empresaId,
+    empresaIds: getEmpresaIdsForColab(index),
+    setorIds: [],
     cargo: cargos[index],
     especialidades,
     custoHora: custoBase + Math.random() * 30,
@@ -473,6 +545,11 @@ export const mockDemandas: Demanda[] = [
     prazoDesejado: sixMonthsAhead,
     solicitanteId: colaboradorIds.colab1,
     status: "convertida" as StatusDemanda,
+    etapa: "concluido",
+    exibirVitrine: true,
+    avaliacoes: [],
+    anexosIds: [],
+    historicoEtapas: [],
     projetoId: projetoIds.projeto1,
     createdAt: threeMonthsAgo,
     updatedAt: monthAgo,
@@ -500,6 +577,11 @@ export const mockDemandas: Demanda[] = [
     prazoDesejado: new Date(now.getTime() + 120 * 24 * 60 * 60 * 1000),
     solicitanteId: colaboradorIds.colab8,
     status: "aguardando_aprovacao" as StatusDemanda,
+    etapa: "analise_comite",
+    exibirVitrine: false,
+    avaliacoes: [],
+    anexosIds: [],
+    historicoEtapas: [],
     createdAt: monthAgo,
     updatedAt: now,
   },
@@ -525,6 +607,11 @@ export const mockDemandas: Demanda[] = [
     prazoDesejado: new Date(now.getTime() + 240 * 24 * 60 * 60 * 1000),
     solicitanteId: colaboradorIds.colab9,
     status: "em_analise" as StatusDemanda,
+    etapa: "analise_inicial",
+    exibirVitrine: true,
+    avaliacoes: [],
+    anexosIds: [],
+    historicoEtapas: [],
     createdAt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
     updatedAt: now,
   },
@@ -575,7 +662,7 @@ export const mockProdutos: Produto[] = [
     descricao:
       "Sistema interno de gestão de projetos utilizado por todas as empresas do grupo.",
     empresaDonaId: empresaIds.alpha,
-    projetoOrigemId: uuidv4(),
+    projetoOrigemId: "projeto-sgp-origem-legado-000",
     clienteIds: [clienteIds.internoAlpha, clienteIds.internoBeta],
     status: "em_operacao" as StatusProduto,
     classificacao: "interno" as ClassificacaoProduto,
@@ -606,7 +693,7 @@ export const mockSquads: Squad[] = [
     id: squadIds.squad2,
     nome: "Squad Sustentação SGP",
     objetivo: "Manter e evoluir o Sistema de Gestão de Projetos interno",
-    projetoId: uuidv4(),
+    projetoId: "projeto-sgp-origem-legado-000",
     status: "ativo" as StatusSquad,
     dataInicio: new Date(2024, 6, 1),
     custoMensal: 35000,
@@ -619,7 +706,7 @@ export const mockSquads: Squad[] = [
 export const mockAlocacoes: Alocacao[] = [
   // Squad Varejo ABC
   {
-    id: uuidv4(),
+    id: "alocacao-001",
     colaboradorId: colaboradorIds.colab1,
     squadId: squadIds.squad1,
     papel: "tech_lead" as PapelAlocacao,
@@ -631,7 +718,7 @@ export const mockAlocacoes: Alocacao[] = [
     updatedAt: now,
   },
   {
-    id: uuidv4(),
+    id: "alocacao-002",
     colaboradorId: colaboradorIds.colab4,
     squadId: squadIds.squad1,
     papel: "desenvolvedor_pleno" as PapelAlocacao,
@@ -643,7 +730,7 @@ export const mockAlocacoes: Alocacao[] = [
     updatedAt: now,
   },
   {
-    id: uuidv4(),
+    id: "alocacao-003",
     colaboradorId: colaboradorIds.colab11,
     squadId: squadIds.squad1,
     papel: "desenvolvedor_pleno" as PapelAlocacao,
@@ -655,7 +742,7 @@ export const mockAlocacoes: Alocacao[] = [
     updatedAt: now,
   },
   {
-    id: uuidv4(),
+    id: "alocacao-004",
     colaboradorId: colaboradorIds.colab2,
     squadId: squadIds.squad1,
     papel: "ux_designer" as PapelAlocacao,
@@ -668,7 +755,7 @@ export const mockAlocacoes: Alocacao[] = [
   },
   // Squad Sustentação
   {
-    id: uuidv4(),
+    id: "alocacao-005",
     colaboradorId: colaboradorIds.colab18,
     squadId: squadIds.squad2,
     papel: "tech_lead" as PapelAlocacao,
@@ -680,7 +767,7 @@ export const mockAlocacoes: Alocacao[] = [
     updatedAt: now,
   },
   {
-    id: uuidv4(),
+    id: "alocacao-006",
     colaboradorId: colaboradorIds.colab10,
     squadId: squadIds.squad2,
     papel: "desenvolvedor_junior" as PapelAlocacao,
@@ -692,6 +779,72 @@ export const mockAlocacoes: Alocacao[] = [
     updatedAt: now,
   },
 ];
+
+// ─── Mock Kanban Configs por Empresa ─────────────────────────────────────────
+// Cada empresa possui um fluxo de demandas customizado que reflete sua natureza.
+
+// Alpha Tecnologia — Fluxo ágil focado em inovação de produto digital.
+// Etapas de comitê e devoluções ficam ocultas: o processo é direto da ideia à entrega.
+const kanbanConfigAlpha: KanbanEmpresaConfig = {
+  empresaId: empresaIds.alpha,
+  etapas: [
+    { etapa: "ideia_recebida",             titulo: "Nova Ideia",         visivel: true,  ordem: 0 },
+    { etapa: "analise_inicial",             titulo: "Triagem Técnica",    visivel: true,  ordem: 1 },
+    { etapa: "analise_comite",              titulo: "Análise Comitê",     visivel: false, ordem: 2 },
+    { etapa: "devolucao_proponente",        titulo: "Devolução",          visivel: false, ordem: 3 },
+    { etapa: "readequacao_recebida",        titulo: "Readequação",        visivel: false, ordem: 4 },
+    { etapa: "validacao_problema",          titulo: "Prova de Conceito",  visivel: true,  ordem: 5 },
+    { etapa: "encaminhado_grupo_trabalho",  titulo: "Em Desenvolvimento", visivel: true,  ordem: 6 },
+    { etapa: "arquivado",                   titulo: "Arquivado",          visivel: false, ordem: 7 },
+    { etapa: "fora_time_estrategico",       titulo: "Descartado",         visivel: false, ordem: 8 },
+    { etapa: "concluido",                   titulo: "Entregue",           visivel: true,  ordem: 9 },
+  ],
+  updatedAt: new Date(),
+};
+
+// Beta Solutions — Fluxo operacional completo com aprovação gerencial e ciclos de revisão.
+// Foco em automação e digitalização: demandas passam por comitê antes de ir para implementação.
+const kanbanConfigBeta: KanbanEmpresaConfig = {
+  empresaId: empresaIds.beta,
+  etapas: [
+    { etapa: "ideia_recebida",             titulo: "Solicitação",          visivel: true,  ordem: 0 },
+    { etapa: "analise_inicial",             titulo: "Análise de Viabilidade", visivel: true, ordem: 1 },
+    { etapa: "analise_comite",              titulo: "Aprovação Gerencial", visivel: true,  ordem: 2 },
+    { etapa: "devolucao_proponente",        titulo: "Revisão Necessária",  visivel: true,  ordem: 3 },
+    { etapa: "readequacao_recebida",        titulo: "Revisão Recebida",    visivel: true,  ordem: 4 },
+    { etapa: "validacao_problema",          titulo: "Validação",           visivel: false, ordem: 5 },
+    { etapa: "encaminhado_grupo_trabalho",  titulo: "Em Implementação",    visivel: true,  ordem: 6 },
+    { etapa: "arquivado",                   titulo: "Arquivado",           visivel: false, ordem: 7 },
+    { etapa: "fora_time_estrategico",       titulo: "Fora do Escopo",      visivel: false, ordem: 8 },
+    { etapa: "concluido",                   titulo: "Implementado",        visivel: true,  ordem: 9 },
+  ],
+  updatedAt: new Date(),
+};
+
+// Gama Labs — Fluxo científico de P&D com validação de hipóteses e arquivamento explícito.
+// Centro de inovação e pesquisa: etapas de devoluções são substituídas por revisão de conselho.
+const kanbanConfigGama: KanbanEmpresaConfig = {
+  empresaId: empresaIds.gama,
+  etapas: [
+    { etapa: "ideia_recebida",             titulo: "Hipótese",              visivel: true, ordem: 0 },
+    { etapa: "analise_inicial",             titulo: "Revisão Científica",   visivel: true, ordem: 1 },
+    { etapa: "analise_comite",              titulo: "Avaliação do Conselho",visivel: true, ordem: 2 },
+    { etapa: "devolucao_proponente",        titulo: "Devolução",            visivel: false, ordem: 3 },
+    { etapa: "readequacao_recebida",        titulo: "Readequação",          visivel: false, ordem: 4 },
+    { etapa: "validacao_problema",          titulo: "Validação de Hipótese",visivel: true, ordem: 5 },
+    { etapa: "encaminhado_grupo_trabalho",  titulo: "Pesquisa Ativa",       visivel: true, ordem: 6 },
+    { etapa: "arquivado",                   titulo: "Descontinuado",        visivel: true, ordem: 7 },
+    { etapa: "fora_time_estrategico",       titulo: "Fora do Roadmap",      visivel: true, ordem: 8 },
+    { etapa: "concluido",                   titulo: "Publicado",            visivel: true, ordem: 9 },
+  ],
+  updatedAt: new Date(),
+};
+
+export const mockKanbanConfigs: Record<string, KanbanEmpresaConfig> = {
+  [empresaIds.alpha]: kanbanConfigAlpha,
+  [empresaIds.beta]: kanbanConfigBeta,
+  [empresaIds.gama]: kanbanConfigGama,
+};
 
 export const getEmpresaById = (id: string): Empresa | undefined =>
   mockEmpresas.find((e) => e.id === id);
@@ -707,3 +860,67 @@ export const getProjetoById = (id: string): Projeto | undefined =>
 
 export const getSquadById = (id: string): Squad | undefined =>
   mockSquads.find((s) => s.id === id);
+
+// IDs fictícios de avaliadores para os mocks
+const AVALIADOR_ANA = "mock-avaliador-ana-oliveira";
+const AVALIADOR_JOAO = "mock-avaliador-joao-santos";
+
+// Avaliações fictícias para as demandas de demonstração
+// Demanda 1 (App Mobile Varejo ABC) → pontuação ~4.5 — excelente
+// Demanda 2 (Gestão de Contratos TechCorp) → pontuação ~3.4 — boa
+// Demanda 3 (Portal Transparência) → pontuação ~2.3 — razoável
+export const mockRespostasAvaliacao: RespostaAvaliacao[] = [
+  // ─── DEMANDA 1: App Mobile Varejo ABC ─────────────────────────────────────
+  // Avaliadora: Ana Oliveira
+  { id: "rv-d1-a1-p1-1", demandaId: demandaIds.demanda1, criterioId: "criterio_1", perguntaId: "pergunta_1_1", valor: 5, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  { id: "rv-d1-a1-p1-2", demandaId: demandaIds.demanda1, criterioId: "criterio_1", perguntaId: "pergunta_1_2", valor: 5, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  { id: "rv-d1-a1-p2-1", demandaId: demandaIds.demanda1, criterioId: "criterio_2", perguntaId: "pergunta_2_1", valor: 4, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  { id: "rv-d1-a1-p2-2", demandaId: demandaIds.demanda1, criterioId: "criterio_2", perguntaId: "pergunta_2_2", valor: 4, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  { id: "rv-d1-a1-p3-1", demandaId: demandaIds.demanda1, criterioId: "criterio_3", perguntaId: "pergunta_3_1", valor: 4, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  { id: "rv-d1-a1-p3-2", demandaId: demandaIds.demanda1, criterioId: "criterio_3", perguntaId: "pergunta_3_2", valor: 5, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  { id: "rv-d1-a1-p4-1", demandaId: demandaIds.demanda1, criterioId: "criterio_4", perguntaId: "pergunta_4_1", valor: 4, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  { id: "rv-d1-a1-p4-2", demandaId: demandaIds.demanda1, criterioId: "criterio_4", perguntaId: "pergunta_4_2", valor: 4, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  { id: "rv-d1-a1-p5-1", demandaId: demandaIds.demanda1, criterioId: "criterio_5", perguntaId: "pergunta_5_1", valor: 5, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  { id: "rv-d1-a1-p5-2", demandaId: demandaIds.demanda1, criterioId: "criterio_5", perguntaId: "pergunta_5_2", valor: 5, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  { id: "rv-d1-a1-p6-1", demandaId: demandaIds.demanda1, criterioId: "criterio_6", perguntaId: "pergunta_6_1", valor: 4, avaliadorId: AVALIADOR_ANA, data: monthAgo },
+  // Avaliador: João Santos (segunda opinião)
+  { id: "rv-d1-a2-p1-1", demandaId: demandaIds.demanda1, criterioId: "criterio_1", perguntaId: "pergunta_1_1", valor: 5, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+  { id: "rv-d1-a2-p1-2", demandaId: demandaIds.demanda1, criterioId: "criterio_1", perguntaId: "pergunta_1_2", valor: 4, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+  { id: "rv-d1-a2-p2-1", demandaId: demandaIds.demanda1, criterioId: "criterio_2", perguntaId: "pergunta_2_1", valor: 5, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+  { id: "rv-d1-a2-p2-2", demandaId: demandaIds.demanda1, criterioId: "criterio_2", perguntaId: "pergunta_2_2", valor: 4, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+  { id: "rv-d1-a2-p3-1", demandaId: demandaIds.demanda1, criterioId: "criterio_3", perguntaId: "pergunta_3_1", valor: 5, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+  { id: "rv-d1-a2-p3-2", demandaId: demandaIds.demanda1, criterioId: "criterio_3", perguntaId: "pergunta_3_2", valor: 5, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+  { id: "rv-d1-a2-p4-1", demandaId: demandaIds.demanda1, criterioId: "criterio_4", perguntaId: "pergunta_4_1", valor: 4, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+  { id: "rv-d1-a2-p4-2", demandaId: demandaIds.demanda1, criterioId: "criterio_4", perguntaId: "pergunta_4_2", valor: 5, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+  { id: "rv-d1-a2-p5-1", demandaId: demandaIds.demanda1, criterioId: "criterio_5", perguntaId: "pergunta_5_1", valor: 5, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+  { id: "rv-d1-a2-p5-2", demandaId: demandaIds.demanda1, criterioId: "criterio_5", perguntaId: "pergunta_5_2", valor: 4, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+  { id: "rv-d1-a2-p6-1", demandaId: demandaIds.demanda1, criterioId: "criterio_6", perguntaId: "pergunta_6_1", valor: 4, avaliadorId: AVALIADOR_JOAO, data: monthAgo },
+
+  // ─── DEMANDA 2: Gestão de Contratos TechCorp ──────────────────────────────
+  // Avaliadora: Ana Oliveira
+  { id: "rv-d2-a1-p1-1", demandaId: demandaIds.demanda2, criterioId: "criterio_1", perguntaId: "pergunta_1_1", valor: 4, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d2-a1-p1-2", demandaId: demandaIds.demanda2, criterioId: "criterio_1", perguntaId: "pergunta_1_2", valor: 4, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d2-a1-p2-1", demandaId: demandaIds.demanda2, criterioId: "criterio_2", perguntaId: "pergunta_2_1", valor: 3, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d2-a1-p2-2", demandaId: demandaIds.demanda2, criterioId: "criterio_2", perguntaId: "pergunta_2_2", valor: 3, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d2-a1-p3-1", demandaId: demandaIds.demanda2, criterioId: "criterio_3", perguntaId: "pergunta_3_1", valor: 3, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d2-a1-p3-2", demandaId: demandaIds.demanda2, criterioId: "criterio_3", perguntaId: "pergunta_3_2", valor: 4, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d2-a1-p4-1", demandaId: demandaIds.demanda2, criterioId: "criterio_4", perguntaId: "pergunta_4_1", valor: 4, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d2-a1-p4-2", demandaId: demandaIds.demanda2, criterioId: "criterio_4", perguntaId: "pergunta_4_2", valor: 3, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d2-a1-p5-1", demandaId: demandaIds.demanda2, criterioId: "criterio_5", perguntaId: "pergunta_5_1", valor: 3, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d2-a1-p5-2", demandaId: demandaIds.demanda2, criterioId: "criterio_5", perguntaId: "pergunta_5_2", valor: 3, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d2-a1-p6-1", demandaId: demandaIds.demanda2, criterioId: "criterio_6", perguntaId: "pergunta_6_1", valor: 3, avaliadorId: AVALIADOR_ANA, data: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) },
+
+  // ─── DEMANDA 3: Portal de Transparência ───────────────────────────────────
+  // Avaliador: João Santos (avaliação parcial — em andamento)
+  { id: "rv-d3-a2-p1-1", demandaId: demandaIds.demanda3, criterioId: "criterio_1", perguntaId: "pergunta_1_1", valor: 3, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d3-a2-p1-2", demandaId: demandaIds.demanda3, criterioId: "criterio_1", perguntaId: "pergunta_1_2", valor: 2, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d3-a2-p2-1", demandaId: demandaIds.demanda3, criterioId: "criterio_2", perguntaId: "pergunta_2_1", valor: 2, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d3-a2-p2-2", demandaId: demandaIds.demanda3, criterioId: "criterio_2", perguntaId: "pergunta_2_2", valor: 2, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d3-a2-p3-1", demandaId: demandaIds.demanda3, criterioId: "criterio_3", perguntaId: "pergunta_3_1", valor: 2, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d3-a2-p3-2", demandaId: demandaIds.demanda3, criterioId: "criterio_3", perguntaId: "pergunta_3_2", valor: 3, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d3-a2-p4-1", demandaId: demandaIds.demanda3, criterioId: "criterio_4", perguntaId: "pergunta_4_1", valor: 3, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d3-a2-p4-2", demandaId: demandaIds.demanda3, criterioId: "criterio_4", perguntaId: "pergunta_4_2", valor: 2, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d3-a2-p5-1", demandaId: demandaIds.demanda3, criterioId: "criterio_5", perguntaId: "pergunta_5_1", valor: 2, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d3-a2-p5-2", demandaId: demandaIds.demanda3, criterioId: "criterio_5", perguntaId: "pergunta_5_2", valor: 2, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+  { id: "rv-d3-a2-p6-1", demandaId: demandaIds.demanda3, criterioId: "criterio_6", perguntaId: "pergunta_6_1", valor: 2, avaliadorId: AVALIADOR_JOAO, data: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) },
+];

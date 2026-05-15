@@ -1,0 +1,1019 @@
+# Manifesto Backend - Geogrid Zabbix Planning
+# Plataforma de Planejamento de Rede com Monitoramento Zabbix + GIS Geogrid
+
+project:
+  framework: fastapi
+  name: "geogrid_zabbix3"
+  description: "Plataforma de Planejamento e Monitoramento de Infraestrutura de Rede com Integração Zabbix e Geogrid GIS"
+  package_manager: "pip"
+  database: "postgresql"
+
+  features:
+    - docker
+    - makefile
+    - celery                   # Sincronização periódica Zabbix/Geogrid
+    - redis                    # Broker Celery e cache
+    - websockets               # Atualização de severidade em tempo real
+    - postgis
+    - tenants
+    - keycloak
+    - rbac
+    - gitlab-ci
+
+
+# Configurações Específicas
+config:
+  celery:
+    broker_url: "redis://redis:6379/0"
+    result_backend: "redis://redis:6379/1"
+    task_serializer: "json"
+    result_serializer: "json"
+    accept_content: ["json"]
+    timezone: "America/Sao_Paulo"
+    beat_schedule:
+      sync_zabbix_frequent:
+        task: "api.tasks.pull_frequent_data"
+        schedule_seconds: 5
+      sync_zabbix_infrequent:
+        task: "api.tasks.pull_infrequent_data"
+        schedule_seconds: 300
+      sync_geogrid:
+        task: "api.tasks.sync_geogrid_data"
+        schedule_seconds: 60
+
+  geogrid:
+    base_url: "${GEOGRID_URL}"
+    api_key: "${GEOGRID_API_KEY}"
+    version: "v3"
+
+  zabbix:
+    base_url: "${ZABBIX_URL}"
+    api_token: "${ZABBIX_API_TOKEN}"
+    version: "6.4"
+
+  docker:
+    images:
+      db: "postgis/postgis:16-3.4-alpine"
+
+# Módulos de Domínio
+modules:
+  # ============================================
+  # ZABBIX: INFRAESTRUTURA DE HOSTS
+  # ============================================
+  - name: "zabbix_infra"
+    description: "Espelhamento da infraestrutura de hosts do Zabbix"
+    models:
+      - name: "Hstgrp"
+        description: "Grupos de hosts do Zabbix"
+        api: "readonly"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "groupid:bigint:pk:auto"
+          - "name:str:max_length=255:default=''"
+        resource_name: "hostgroup"
+
+      - name: "Maintenances"
+        description: "Janelas de manutenção do Zabbix"
+        api: "readonly"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "maintenanceid:bigint:pk:auto"
+          - "name:str:max_length=128:null"
+        resource_name: "maintenance"
+
+      - name: "Hosts"
+        description: "Hosts monitorados pelo Zabbix"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "hostid:bigint:pk:auto"
+          - "proxy_hostid:fk:self:null"
+          - "host:str:max_length=128:default=''"
+          - "name:str:max_length=128:default=''"
+          - "status:int:default=0"
+          - "maintenanceid:fk:Maintenances:null"
+          - "templateid:fk:self:null"
+          - "flags:int:default=0"
+        resource_name: "host"
+
+      - name: "Interface"
+        description: "Interfaces de rede dos hosts"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "interfaceid:bigint:pk:auto"
+          - "hostid:fk:Hosts:null"
+          - "ip:str:max_length=64:default=''"
+          - "dns:str:max_length=255:default=''"
+          - "port:str:max_length=64:default=''"
+        resource_name: "interface"
+
+      - name: "HostDiscovery"
+        description: "Descoberta automática de hosts"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "hostid:o2o:Hosts:pk"
+          - "parent_hostid:bigint:null"
+          - "parent_itemid:bigint:null"
+        resource_name: "host_discovery"
+
+      - name: "HostInventory"
+        description: "Inventário do host"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "hostid:o2o:Hosts:pk"
+          - "type:str:max_length=64:default=''"
+          - "os:str:max_length=128:default=''"
+          - "software:str:max_length=255:default=''"
+          - "contact:text:default=''"
+          - "location:text:default=''"
+        resource_name: "host_inventory"
+
+      - name: "HostTag"
+        description: "Tags do host"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "hosttagid:bigint:pk:auto"
+          - "hostid:fk:Hosts:null"
+          - "tag:str:max_length=255:default=''"
+          - "value:str:max_length=255:default=''"
+        resource_name: "host_tag"
+
+      - name: "Hostmacro"
+        description: "Macros do host"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "hostmacroid:bigint:pk:auto"
+          - "hostid:fk:Hosts:null"
+          - "macro:str:max_length=255:default=''"
+          - "value:str:max_length=2048:default=''"
+        resource_name: "hostmacro"
+
+      - name: "HostsGroups"
+        description: "Associação host-grupo"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "hostgroupid:bigint:pk:auto"
+          - "hostid:fk:Hosts:null"
+          - "groupid:fk:Hstgrp:null"
+        constraints:
+          - "unique_together: [hostid, groupid]"
+        resource_name: "hosts_group"
+
+      - name: "HostsTemplates"
+        description: "Associação host-template"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "hosttemplateid:bigint:pk:auto"
+          - "hostid:fk:Hosts:null"
+          - "templateid:fk:Hosts:null"
+        constraints:
+          - "unique_together: [hostid, templateid]"
+        resource_name: "hosts_template"
+
+      - name: "Valuemap"
+        description: "Mapas de valores"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "valuemapid:bigint:pk:auto"
+          - "hostid:fk:Hosts:null"
+          - "name:str:max_length=64:default=''"
+        resource_name: "valuemap"
+
+  # ============================================
+  # ZABBIX: MONITORAMENTO (ITEMS, TRIGGERS, EVENTS)
+  # ============================================
+  - name: "zabbix_monitoring"
+    description: "Espelhamento do monitoramento do Zabbix"
+    models:
+      - name: "Items"
+        description: "Itens de dados monitorados"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "itemid:bigint:pk:auto"
+          - "hostid:fk:zabbix_infra.Hosts:null"
+          - "name:str:max_length=255:default=''"
+          - "key_field:str:max_length=2048:default=''"
+          - "type:int:default=0"
+          - "value_type:int:default=0"
+        resource_name: "item"
+
+      - name: "Triggers"
+        description: "Triggers de monitoramento"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "triggerid:bigint:pk:auto"
+          - "description:str:max_length=255:default=''"
+          - "expression:str:max_length=2048:default=''"
+          - "priority:int:default=0"
+          - "status:int:default=0"
+          - "value:int:default=0"
+        resource_name: "trigger"
+
+      - name: "Functions"
+        description: "Liga Items a Triggers (cadeia de propagação de severidade)"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "functionid:bigint:pk:auto"
+          - "itemid:fk:Items:null"
+          - "triggerid:fk:Triggers:null"
+          - "name:str:max_length=12:default=''"
+          - "parameter:str:max_length=255:default=''"
+        resource_name: "function"
+
+      - name: "TriggerDepends"
+        description: "Dependências entre triggers"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "triggerdepid:bigint:pk:auto"
+          - "triggerid_down:fk:Triggers:null"
+          - "triggerid_up:fk:Triggers:null"
+        resource_name: "trigger_depend"
+
+      - name: "TriggerDiscovery"
+        description: "Descoberta automática de triggers"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "triggerid:o2o:Triggers:pk"
+          - "parent_triggerid:bigint:null"
+        resource_name: "trigger_discovery"
+
+      - name: "TriggerTag"
+        description: "Tags de triggers"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "triggertagid:bigint:pk:auto"
+          - "triggerid:fk:Triggers:null"
+          - "tag:str:max_length=255:default=''"
+          - "value:str:max_length=255:default=''"
+        resource_name: "trigger_tag"
+
+      - name: "Events"
+        description: "Eventos do Zabbix"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "eventid:bigint:pk"
+          - "source:int:default=0"
+          - "object:int:default=0"
+          - "objectid:bigint:null"
+        resource_name: "event"
+
+      - name: "Problem"
+        description: "Problemas ativos"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "eventid:o2o:Events:pk"
+          - "severity:int:default=0:choices=SeverityStatus"
+          - "name:str:max_length=2048:default=''"
+          - "acknowledged:int:default=0"
+          - "clock:int:default=0"
+        resource_name: "problem"
+
+      - name: "ProblemTag"
+        description: "Tags de problemas"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "problemtagid:bigint:pk:auto"
+          - "eventid:fk:Problem:null"
+          - "tag:str:max_length=255:default=''"
+          - "value:str:max_length=255:default=''"
+        resource_name: "problem_tag"
+
+  # ============================================
+  # ZABBIX: SERVICES & ALERTS
+  # ============================================
+  - name: "zabbix_services"
+    description: "Espelhamento de serviços, alertas e SLA do Zabbix"
+    models:
+      - name: "Services"
+        description: "Serviços do Zabbix (árvore de SLA)"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "serviceid:bigint:pk:auto"
+          - "name:str:max_length=128:default=''"
+          - "status:int:default=0"
+        resource_name: "service"
+
+      - name: "ServiceAlarms"
+        description: "Alarmes de serviço"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "servicealarmid:bigint:pk:auto"
+          - "serviceid:fk:Services:null"
+          - "clock:int:default=0"
+          - "value:int:default=0"
+        constraints:
+          - "unique_together: [serviceid, clock]"
+        resource_name: "service_alarm"
+
+      - name: "ServiceProblem"
+        description: "Problemas vinculados a serviços"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "service_problemid:bigint:pk:auto"
+          - "eventid:fk:zabbix_monitoring.Problem:null"
+          - "serviceid:fk:Services:null"
+          - "severity:int:default=0"
+        resource_name: "service_problem"
+
+      - name: "ServiceProblemTag"
+        description: "Tags de problema por serviço"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "service_problem_tagid:bigint:pk:auto"
+          - "serviceid:fk:Services:null"
+          - "tag:str:max_length=255:default=''"
+        resource_name: "service_problem_tag"
+
+      - name: "ServiceStatusRule"
+        description: "Regras de cálculo de status do serviço"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "service_status_ruleid:bigint:pk:auto"
+          - "serviceid:fk:Services:null"
+          - "new_status:int:default=0"
+        resource_name: "service_status_rule"
+
+      - name: "ServicesLinks"
+        description: "Hierarquia pai/filho da árvore de serviços"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "linkid:bigint:pk:auto"
+          - "serviceupid:fk:Services:null"
+          - "servicedownid:fk:Services:null"
+        resource_name: "services_link"
+
+      - name: "Actions"
+        description: "Ações configuradas no Zabbix"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "actionid:bigint:pk:auto"
+          - "name:str:max_length=255:default=''"
+        resource_name: "action"
+
+      - name: "MediaType"
+        description: "Tipos de mídia para notificação"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "mediatypeid:bigint:pk:auto"
+          - "name:str:max_length=255:default=''"
+        resource_name: "media_type"
+
+      - name: "Alerts"
+        description: "Alertas enviados pelo Zabbix"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "alertid:bigint:pk:auto"
+          - "actionid:fk:Actions:null"
+          - "eventid:fk:zabbix_monitoring.Events:null"
+          - "mediatypeid:fk:MediaType:null"
+        resource_name: "alert"
+
+      - name: "Usrgrp"
+        description: "Grupos de usuários do Zabbix"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "usrgrpid:bigint:pk:auto"
+          - "name:str:max_length=64:unique"
+        resource_name: "usrgrp"
+
+  # ============================================
+  # PLANEJAMENTO GIS (GEOGRID)
+  # ============================================
+  - name: "planning"
+    description: "Planejamento de rede com GIS (Geogrid + Zabbix)"
+    models:
+      - name: "PlanningFolder"
+        description: "Estrutura de pastas para organização geográfica"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "external_id:int:unique:null"
+          - "name:str:max_length=255:default='Nova Pasta'"
+          - "icon_family:str:max_length=100:default='default'"
+          - "parent:fk:self:null"
+          - "path_array:json:default=[]"
+          - "zabbix_service:fk:zabbix_services.Services:null"
+          - "current_severity:int:default=0:choices=SeverityStatus"
+        resource_name: "folder"
+
+      - name: "MapMarker"
+        description: "Marcadores de infraestrutura no mapa (CTO, OLT, Postes, etc.)"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "external_id:int:unique:null"
+          - "element_type:str:max_length=20:default='CTO':choices=MapMarkerModelTypes"
+          - "name:str:max_length=255:default=''"
+          - "icon:str:max_length=100:default='default'"
+          - "icon_family:str:max_length=100:default='default'"
+          - "icon_type:str:max_length=50:default='default'"
+          - "location:point:null:srid=4326"
+          - "address:str:max_length=500:null"
+          - "capacity_used:int:default=0"
+          - "capacity_total:int:default=0"
+          - "folder:fk:PlanningFolder:null"
+          - "zabbix_host:fk:zabbix_infra.Hosts:null"
+          - "current_severity:int:default=0:choices=SeverityStatus"
+        resource_name: "marker"
+
+      - name: "FiberCable"
+        description: "Cabos de fibra óptica com geometria GIS"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "external_id:int:unique:null"
+          - "name:str:max_length=255:default=''"
+          - "icon_family:str:max_length=100:default='default'"
+          - "type:str:max_length=50:default=''"
+          - "path:linestring:null:geography=true"
+          - "fiber_quantity:int:default=0"
+          - "tube_quantity:int:default=0"
+          - "fiber_standard:str:max_length=50:default='G.652.D'"
+          - "color:str:max_length=7:default='#FF0000'"
+          - "line_style:str:max_length=20:default='solid'"
+          - "distance:float:default=0.0"
+          - "slack_length:float:default=0.0"
+          - "total_length_real:float:default=0.0"
+          - "status:str:max_length=20:default='active':choices=FiberCableStatusChoices"
+          - "layer:str:max_length=20:default='feeder':choices=FiberCableLayerChoices"
+          - "installation_type:str:max_length=20:default='underground':choices=FiberCableInstallationChoices"
+          - "folder:fk:PlanningFolder:null"
+          - "origin_marker:fk:MapMarker:null"
+          - "destination_marker:fk:MapMarker:null"
+          - "zabbix_host:fk:zabbix_infra.Hosts:null"
+          - "current_severity:int:default=0:choices=SeverityStatus"
+          - "waypoint_markers:m2m:MapMarker"
+        resource_name: "cable"
+
+      - name: "Client"
+        description: "Clientes atendidos na rede"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "external_id:int:unique:null"
+          - "name:str:max_length=255"
+          - "code_integration:str:max_length=50:null:unique"
+          - "cpf_cnpj:str:max_length=20:null"
+          - "type:str:max_length=1:choices=['F','J']:default='F'"
+          - "email:str:max_length=255:null"
+          - "phone:str:max_length=30:null"
+          - "address:str:max_length=500:null"
+          - "city:str:max_length=100:null"
+          - "state:str:max_length=2:null"
+        resource_name: "client"
+
+  # ============================================
+  # DIAGRAMAS & FIBRA ÓPTICA
+  # ============================================
+  - name: "fiber_optics"
+    description: "Diagramas de fusão, equipamentos e portas"
+    models:
+      - name: "EquipmentType"
+        description: "Tipos de equipamento (Geogrid equipamentosTipos)"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "name:str:max_length=255"
+          - "type:str:max_length=50"  # divisor, olt, onu, distribuidor, roteador, outros
+          - "description:str:max_length=255:default=''"
+          - "default_inputs:int:default=0"
+          - "default_outputs:int:default=0"
+        resource_name: "equipment_type"
+
+      - name: "CableType"
+        description: "Tipos de cabo (Geogrid cabosTipos)"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "name:str:max_length=255"
+          - "fibers_per_tube:int:default=12"
+          - "total_fibers:int:default=12"
+          - "color:str:max_length=7:default='#FFFFFF'"
+          - "specification:text:default=''"
+        resource_name: "cable_type"
+
+      - name: "DiagramBaseEquipment"
+        description: "Equipamento no diagrama de fusão (ex: Splitter, DIO, OLT)"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "name:str:max_length=255:default=''"
+          - "marker:fk:planning.MapMarker:null"
+          - "equipment_type:fk:EquipmentType:null"
+          - "inputs:int:default=0"
+          - "outputs:int:default=0"
+          - "pos_x:float:default=0"
+          - "pos_y:float:default=0"
+          - "tipo_conector_entrada:str:max_length=50:default='normal'"
+          - "tipo_conector_saida:str:max_length=50:default='normal'"
+          - "cor_entrada:str:max_length=7:default='#FFFFFF'"
+          - "cor_saida:str:max_length=7:default='#FFFFFF'"
+          - "is_flipped:bool:default=False"
+        resource_name: "equipment"
+
+      - name: "DiagramFiberNode"
+        description: "Nó de fibra no diagrama (representação de cabo)"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "name:str:max_length=255:default=''"
+          - "fiber_cable:o2o:planning.FiberCable:null"
+          - "tube_quantity:int:default=1"
+          - "fibers_per_tube:int:default=12"
+          - "tipo_conector:str:max_length=20:default='normal':choices=FiberOpticsChoices"
+          - "custom_colors:json:default=[]"
+          - "pos_x:float:default=0"
+          - "pos_y:float:default=0"
+          - "is_flipped:bool:default=False"
+        resource_name: "fiber_node"
+
+      - name: "FiberTube"
+        description: "Tubo individual dentro de um nó de fibra"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "fiber_node:fk:DiagramFiberNode"
+          - "tube_number:int:default=1"
+          - "color_name:str:max_length=50"
+          - "color_hex:str:max_length=7:default='#FFFFFF'"
+        resource_name: "fiber_tube"
+
+      - name: "DiagramPort"
+        description: "Porta de equipamento ou filamento de fibra"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "equipment:fk:DiagramBaseEquipment:null"
+          - "fiber:fk:DiagramFiberNode:null"
+          - "tube:fk:FiberTube:null"
+          - "fiber_global_number:int:default=0"
+          - "port_number:int:default=0"
+          - "is_output:bool:default=False"
+          - "status:str:max_length=20:default='free':choices=FiberOpticsStatusChoices"
+          - "identifier:str:max_length=50:default=''"
+          - "client:fk:planning.Client:null"
+          - "zabbix_item:fk:zabbix_monitoring.Items:null"
+          - "zabbix_trigger:fk:zabbix_monitoring.Triggers:null"
+          - "current_severity:int:default=0:choices=SeverityStatus"
+        constraints:
+          - "unique_together: [fiber, fiber_global_number] (condition: fiber IS NOT NULL)"
+          - "unique_together: [equipment, port_number, is_output] (condition: equipment IS NOT NULL)"
+        resource_name: "port"
+
+      - name: "DiagramConnectionLink"
+        description: "Fusão entre duas portas (conexão física)"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "up_port:o2o:DiagramPort"
+          - "down_port:o2o:DiagramPort"
+        resource_name: "connection"
+
+  # ============================================
+  # INTEGRAÇÕES & SISTEMA
+  # ============================================
+  - name: "integrations"
+    description: "Links cross-system, logs e alertas internos"
+    models:
+      - name: "ZabbixEntityLink"
+        description: "Mapeamento genérico de entidades do sistema para entidades Zabbix"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "content_type:fk:contenttypes.ContentType"
+          - "object_id:int"
+          - "zabbix_host:fk:zabbix_infra.Hosts:null"
+          - "zabbix_item:fk:zabbix_monitoring.Items:null"
+          - "zabbix_trigger:fk:zabbix_monitoring.Triggers:null"
+          - "description:str:max_length=255:default=''"
+        resource_name: "entity_link"
+
+      - name: "GeogridStatusLog"
+        description: "Histórico de mudanças de severidade nas entidades"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "content_type:fk:contenttypes.ContentType"
+          - "object_id:int"
+          - "old_severity:int:default=0"
+          - "new_severity:int:default=0"
+          - "timestamp:datetime:auto_now_add"
+          - "duration:duration:null"
+        resource_name: "status_log"
+
+      - name: "InternalAlert"
+        description: "Alertas internos do sistema"
+        behaviors:
+          - "Timestamped"
+        fields:
+          - "title:str:max_length=255:default=''"
+          - "description:text:default=''"
+          - "type:str:max_length=20:default='alert':choices=AlertType"
+          - "created_at:datetime:auto_now_add"
+        resource_name: "alert"
+
+# ============================================
+# CHOICES (Enums)
+# ============================================
+choices:
+  - name: "SeverityStatus"
+    type: "IntegerChoices"
+    values:
+      - "NOT_CLASSIFIED:0"
+      - "INFORMATION:1"
+      - "WARNING:2"
+      - "AVERAGE:3"
+      - "HIGH:4"
+      - "DISASTER:5"
+
+  - name: "AlertType"
+    type: "TextChoices"
+    values:
+      - "ALERT:alert"
+      - "INFO:info"
+      - "SUCCESS:success"
+      - "WARNING:warning"
+      - "ERROR:error"
+
+  - name: "FiberOpticsStatusChoices"
+    type: "TextChoices"
+    values:
+      - "FREE:free:Livre"
+      - "RESERVED:reserved:Reservado"
+      - "OCCUPIED:occupied:Ocupado"
+      - "BROKEN:broken:Com Defeito"
+
+  - name: "FiberOpticsChoices"
+    type: "TextChoices"
+    values:
+      - "NORMAL:normal"
+      - "APC:APC"
+      - "PC:PC"
+      - "UPC:UPC"
+
+  - name: "FiberOpticsColorChoices"
+    type: "TextChoices"
+    values:
+      - "BLUE:blue:Azul"
+      - "ORANGE:orange:Laranja"
+      - "GREEN:green:Verde"
+      - "BROWN:brown:Marrom"
+      - "GRAY:gray:Cinza"
+      - "WHITE:white:Branco"
+      - "RED:red:Vermelho"
+      - "BLACK:black:Preto"
+      - "YELLOW:yellow:Amarelo"
+      - "VIOLET:violet:Violeta"
+      - "PINK:pink:Rosa"
+      - "AQUA:aqua:Aqua"
+
+  - name: "MapMarkerModelTypes"
+    type: "TextChoices"
+    values:
+      - "CTO:CTO:Caixa de Atendimento"
+      - "CEO:CEO:Caixa de Emenda"
+      - "OLT:OLT:Concentrador"
+      - "SWITCH:SWITCH:Switch/Agregação"
+      - "ROUTER:ROUTER:Roteador Core"
+      - "DIO:DIO:DIO/Distribuidor"
+      - "POSTE:POSTE:Poste"
+
+  - name: "FiberCableLayerChoices"
+    type: "TextChoices"
+    values:
+      - "BACKBONE:backbone:Backbone / Core"
+      - "FEEDER:feeder:Alimentação / Distribuição"
+      - "DROP:drop:Acesso / Cliente"
+
+  - name: "FiberCableStatusChoices"
+    type: "TextChoices"
+    values:
+      - "ACTIVE:active:Ativo"
+      - "PLANNING:planning:Planejamento"
+      - "MAINTENANCE:maintenance:Manutenção"
+      - "BROKEN:broken:Quebrado"
+
+  - name: "FiberCableInstallationChoices"
+    type: "TextChoices"
+    values:
+      - "AERIAL:aerial:Aéreo"
+      - "UNDERGROUND:underground:Subterrâneo"
+      - "SUBMARINE:submarine:Submarino/Submerso"
+
+# ============================================
+# RBAC - PAPÉIS E PERMISSÕES
+# ============================================
+permissions:
+
+  # ------------------------------------------
+  # Definição dos papéis (roles) do sistema
+  # ------------------------------------------
+  roles:
+    - code: "admin"
+      name: "Administrador"
+      level: 100
+      description: "Acesso total ao sistema. Gerencia configurações, sincronizações e infraestrutura."
+
+    - code: "gestor_noc"
+      name: "Gestor NOC"
+      level: 80
+      description: "Gestor do Centro de Operações de Rede. Supervisiona equipe, relatórios e escalações."
+
+    - code: "tecnico_senior"
+      name: "Técnico Senior"
+      level: 60
+      description: "Técnico com permissão de planejamento, edição de diagramas e gestão de equipamentos."
+
+    - code: "tecnico"
+      name: "Técnico"
+      level: 40
+      description: "Técnico operacional. Visualiza mapa, monitora severidade e opera diagramas."
+
+    - code: "visualizador"
+      name: "Visualizador"
+      level: 20
+      description: "Acesso somente leitura ao mapa, status e alertas."
+
+    - code: "sistema"
+      name: "Sistema"
+      level: 0
+      description: "Conta de serviço para sincronização Zabbix/Geogrid via Celery."
+
+  # ------------------------------------------
+  # Permissões por módulo
+  # Formato: module.resource.action
+  # ------------------------------------------
+  module_permissions:
+    # =====================
+    # zabbix_infra
+    # =====================
+    - code: "zabbix_infra.host.list"
+      description: "Visualizar hosts do Zabbix"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico", "visualizador"]
+
+    - code: "zabbix_infra.host.sync"
+      description: "Disparar sincronização de hosts"
+      roles: ["admin", "sistema"]
+
+    - code: "zabbix_infra.hostgroup.list"
+      description: "Visualizar grupos de hosts"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico"]
+
+    - code: "zabbix_infra.interface.list"
+      description: "Visualizar interfaces de rede"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico"]
+
+    - code: "zabbix_infra.host_inventory.list"
+      description: "Visualizar inventário de hosts"
+      roles: ["admin", "gestor_noc", "tecnico_senior"]
+
+    # =====================
+    # zabbix_monitoring
+    # =====================
+    - code: "zabbix_monitoring.item.list"
+      description: "Visualizar itens de monitoramento"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico"]
+
+    - code: "zabbix_monitoring.trigger.list"
+      description: "Visualizar triggers"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico", "visualizador"]
+
+    - code: "zabbix_monitoring.problem.list"
+      description: "Visualizar problemas ativos"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico", "visualizador"]
+
+    - code: "zabbix_monitoring.problem.acknowledge"
+      description: "Reconhecer problemas"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico"]
+
+    - code: "zabbix_monitoring.event.list"
+      description: "Visualizar eventos"
+      roles: ["admin", "gestor_noc", "tecnico_senior"]
+
+    - code: "zabbix_monitoring.function.list"
+      description: "Visualizar relação item-trigger"
+      roles: ["admin", "gestor_noc", "tecnico_senior"]
+
+    # =====================
+    # zabbix_services
+    # =====================
+    - code: "zabbix_services.service.list"
+      description: "Visualizar árvore de serviços (SLA)"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico", "visualizador"]
+
+    - code: "zabbix_services.service.sync"
+      description: "Disparar sincronização de serviços"
+      roles: ["admin", "sistema"]
+
+    - code: "zabbix_services.service_alarm.list"
+      description: "Visualizar alarmes de serviço"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico"]
+
+    - code: "zabbix_services.alert.list"
+      description: "Visualizar alertas enviados"
+      roles: ["admin", "gestor_noc", "tecnico_senior"]
+
+    - code: "zabbix_services.services_link.list"
+      description: "Visualizar hierarquia de serviços"
+      roles: ["admin", "gestor_noc", "tecnico_senior"]
+
+    # =====================
+    # planning
+    # =====================
+    - code: "planning.folder.create"
+      description: "Criar pastas de planejamento"
+      roles: ["admin", "gestor_noc", "tecnico_senior"]
+
+    - code: "planning.folder.list"
+      description: "Visualizar pastas"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico", "visualizador"]
+
+    - code: "planning.folder.update"
+      description: "Editar pastas"
+      roles: ["admin", "gestor_noc", "tecnico_senior"]
+
+    - code: "planning.folder.delete"
+      description: "Excluir pastas"
+      roles: ["admin", "gestor_noc"]
+
+    - code: "planning.marker.create"
+      description: "Criar marcadores no mapa"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico"]
+
+    - code: "planning.marker.list"
+      description: "Visualizar marcadores"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico", "visualizador"]
+
+    - code: "planning.marker.update"
+      description: "Editar marcadores"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico"]
+
+    - code: "planning.marker.delete"
+      description: "Excluir marcadores"
+      roles: ["admin", "gestor_noc", "tecnico_senior"]
+
+    - code: "planning.cable.create"
+      description: "Criar cabos de fibra"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico"]
+
+    - code: "planning.cable.list"
+      description: "Visualizar cabos"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico", "visualizador"]
+
+    - code: "planning.cable.update"
+      description: "Editar cabos"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico"]
+
+    - code: "planning.cable.delete"
+      description: "Excluir cabos"
+      roles: ["admin", "gestor_noc", "tecnico_senior"]
+
+    - code: "planning.client.create"
+      description: "Cadastrar clientes"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico"]
+
+    - code: "planning.client.list"
+      description: "Visualizar clientes"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico", "visualizador"]
+
+    - code: "planning.client.update"
+      description: "Editar dados de clientes"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico"]
+
+    - code: "planning.client.delete"
+      description: "Excluir clientes"
+      roles: ["admin", "gestor_noc"]
+
+    - code: "planning.geogrid.sync"
+      description: "Disparar sincronização com Geogrid"
+      roles: ["admin", "sistema"]
+
+    # =====================
+    # fiber_optics
+    # =====================
+    - code: "fiber_optics.equipment.create"
+      description: "Criar equipamentos no diagrama"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico"]
+
+    - code: "fiber_optics.equipment.list"
+      description: "Visualizar equipamentos"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico", "visualizador"]
+
+    - code: "fiber_optics.equipment.update"
+      description: "Editar equipamentos"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico"]
+
+    - code: "fiber_optics.equipment.delete"
+      description: "Excluir equipamentos"
+      roles: ["admin", "gestor_noc", "tecnico_senior"]
+
+    - code: "fiber_optics.equipment_type.manage"
+      description: "Gerenciar tipos de equipamento"
+      roles: ["admin"]
+
+    - code: "fiber_optics.cable_type.manage"
+      description: "Gerenciar tipos de cabo"
+      roles: ["admin"]
+
+    - code: "fiber_optics.fiber_node.create"
+      description: "Criar nós de fibra"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico"]
+
+    - code: "fiber_optics.fiber_node.list"
+      description: "Visualizar nós de fibra"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico", "visualizador"]
+
+    - code: "fiber_optics.fiber_node.update"
+      description: "Editar nós de fibra"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico"]
+
+    - code: "fiber_optics.port.list"
+      description: "Visualizar portas e filamentos"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico", "visualizador"]
+
+    - code: "fiber_optics.port.update"
+      description: "Alterar status de portas (reservar, ocupar)"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico"]
+
+    - code: "fiber_optics.connection.create"
+      description: "Criar fusões entre portas"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico"]
+
+    - code: "fiber_optics.connection.list"
+      description: "Visualizar fusões"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico", "visualizador"]
+
+    - code: "fiber_optics.connection.delete"
+      description: "Desfazer fusões"
+      roles: ["admin", "gestor_noc", "tecnico_senior"]
+
+    # =====================
+    # integrations
+    # =====================
+    - code: "integrations.entity_link.create"
+      description: "Vincular entidade do mapa a entidade Zabbix"
+      roles: ["admin", "gestor_noc", "tecnico_senior"]
+
+    - code: "integrations.entity_link.list"
+      description: "Visualizar vínculos Zabbix"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico"]
+
+    - code: "integrations.entity_link.delete"
+      description: "Remover vínculos Zabbix"
+      roles: ["admin", "gestor_noc", "tecnico_senior"]
+
+    - code: "integrations.status_log.list"
+      description: "Visualizar histórico de mudanças de severidade"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico", "visualizador"]
+
+    - code: "integrations.alert.list"
+      description: "Visualizar alertas internos"
+      roles: ["admin", "gestor_noc", "tecnico_senior", "tecnico", "visualizador"]
+
+    # =====================
+    # system
+    # =====================
+    - code: "system.config.list"
+      description: "Visualizar configurações do sistema"
+      roles: ["admin"]
+
+    - code: "system.config.manage"
+      description: "Alterar configurações do sistema"
+      roles: ["admin"]
+
+    - code: "system.health.list"
+      description: "Visualizar health check dos serviços"
+      roles: ["admin", "gestor_noc", "sistema"]
+
+    - code: "system.sync.status"
+      description: "Visualizar status das sincronizações Zabbix/Geogrid"
+      roles: ["admin", "gestor_noc", "tecnico_senior"]

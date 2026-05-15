@@ -1,0 +1,14 @@
+export { authService } from "./auth.service";
+export { empresaService } from "./empresa.service";
+export { clienteService } from "./cliente.service";
+export { colaboradorService } from "./colaborador.service";
+export { setorService } from "./setor.service";
+export { tenantService } from "./tenant.service";
+export { demandaService } from "./demanda.service";
+export { projetoService } from "./projeto.service";
+export { produtoService } from "./produto.service";
+export { squadService } from "./squad.service";
+export { alocacaoService } from "./alocacao.service";
+export { kanbanConfigService } from "./kanban-config.service";
+export { notificacaoService } from "./notificacao.service";
+export { avaliacaoDemandaService } from "./avaliacao-demanda.service";

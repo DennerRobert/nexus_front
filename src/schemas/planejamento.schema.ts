@@ -52,7 +52,7 @@ export const marcoPlanoFormSchema = z.object({
   descricao: z.string(),
   dataPrevista: z.preprocess((arg) => {
     if (typeof arg == "string" || arg instanceof Date) return new Date(arg);
-  }, z.date({ required_error: "Data prevista é obrigatória" })),
+  }, z.date({ error: "Data prevista é obrigatória" })),
   faseId: z.string().min(1, "Fase é obrigatória"),
   entregaveis: z.array(z.string()),
 });

@@ -31,6 +31,8 @@ export const clienteSchema = z
 
     origem: origemClienteEnum,
 
+    empresaId: z.string().uuid("ID de empresa inválido").optional(),
+
     naturezaJuridica: naturezaJuridicaEnum.optional(),
 
     cnpj: z
@@ -45,7 +47,7 @@ export const clienteSchema = z
 
     modeloReceita: modeloReceitaEnum.optional(),
 
-    ativo: z.boolean().default(true),
+    ativo: z.boolean(),
   })
   .refine(
     (data) => {

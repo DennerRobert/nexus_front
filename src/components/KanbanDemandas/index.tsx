@@ -23,6 +23,7 @@ import {
   ETAPA_DEMANDA_COLORS,
   TRANSICOES_PERMITIDAS,
 } from "@/interfaces/etapa-demanda.interface";
+import type { EtapaKanbanConfig } from "@/interfaces/kanban-config.interface";
 import { HORIZONTE_INOVACAO_LABELS } from "@/interfaces/demanda.interface";
 import {
   GripVertical,
@@ -38,12 +39,14 @@ interface KanbanDemandasProps {
   demandas: Demanda[];
   usuarioId: string;
   className?: string;
+  etapasConfig?: EtapaKanbanConfig[];
 }
 
 export const KanbanDemandas = ({
   demandas,
   usuarioId,
   className,
+  etapasConfig,
 }: KanbanDemandasProps) => {
   const { mudarEtapa, podeTransicionar } = useDemandaStore();
   const { todasPerguntasRespondidas } = useAvaliacaoDemandaStore();
@@ -52,7 +55,27 @@ export const KanbanDemandas = ({
   const [demandaSelecionada, setDemandaSelecionada] = useState<Demanda | null>(null);
   const [showFluxoModal, setShowFluxoModal] = useState(false);
 
-  // Organiza demandas por etapa
+  // Etapas a exibir: usa config customizada se fornecida, senão o padrão global
+  const etapasVisiveis = useMemo(() => {
+    if (etapasConfig) {
+      return etapasConfig
+        .filter((c) => c.visivel)
+        .sort((a, b) => a.ordem - b.ordem)
+        .map((c) => c.etapa);
+    }
+    return ETAPAS_ORDEM;
+  }, [etapasConfig]);
+
+  // Retorna o título customizado para uma etapa, ou o label padrão
+  const getTituloEtapa = (etapa: EtapaDemanda): string => {
+    if (etapasConfig) {
+      const config = etapasConfig.find((c) => c.etapa === etapa);
+      if (config) return config.titulo;
+    }
+    return ETAPA_DEMANDA_LABELS[etapa];
+  };
+
+  // Organiza demandas por etapa (inclui todas, mesmo as ocultas, para não perder cards)
   const demandasPorEtapa = useMemo(() => {
     const resultado: Record<EtapaDemanda, Demanda[]> = {} as Record<EtapaDemanda, Demanda[]>;
     ETAPAS_ORDEM.forEach((etapa) => {
@@ -131,10 +154,11 @@ export const KanbanDemandas = ({
             className
           )}
         >
-          {ETAPAS_ORDEM.map((etapa) => (
+          {etapasVisiveis.map((etapa) => (
             <KanbanColuna
               key={etapa}
               etapa={etapa}
+              titulo={getTituloEtapa(etapa)}
               demandas={demandasPorEtapa[etapa]}
               onCardClick={(demanda) => {
                 setDemandaSelecionada(demanda);
@@ -173,11 +197,12 @@ export const KanbanDemandas = ({
 // Coluna do Kanban
 interface KanbanColunaProps {
   etapa: EtapaDemanda;
+  titulo: string;
   demandas: Demanda[];
   onCardClick: (demanda: Demanda) => void;
 }
 
-const KanbanColuna = ({ etapa, demandas, onCardClick }: KanbanColunaProps) => {
+const KanbanColuna = ({ etapa, titulo, demandas, onCardClick }: KanbanColunaProps) => {
   const corBase = ETAPA_DEMANDA_COLORS[etapa].split(" ")[0];
 
   return (
@@ -193,8 +218,8 @@ const KanbanColuna = ({ etapa, demandas, onCardClick }: KanbanColunaProps) => {
         }}
       >
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-slate-200">
-            {ETAPA_DEMANDA_LABELS[etapa]}
+          <h3 className="text-sm font-medium text-slate-200" title={ETAPA_DEMANDA_LABELS[etapa]}>
+            {titulo}
           </h3>
           <Badge variant="secondary" className="text-xs">
             {demandas.length}

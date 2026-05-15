@@ -66,20 +66,21 @@ const SquadDetailPage = ({ params }: SquadDetailPageProps) => {
   }, [id, calcularCustoSquad]);
 
   const composicaoPorEmpresa = useMemo(() => {
-    const empresas: Record<string, { nome: string; count: number; custo: number }> = {};
+    const empresasMap: Record<string, { nome: string; count: number; custo: number }> = {};
     alocacoes.forEach((alocacao) => {
       const colaborador = getColaborador(alocacao.colaboradorId);
       if (colaborador) {
-        const empresa = getEmpresa(colaborador.empresaId);
-        const empresaId = colaborador.empresaId;
-        if (!empresas[empresaId]) {
-          empresas[empresaId] = { nome: empresa?.nome || "Desconhecida", count: 0, custo: 0 };
+        const primaryEmpresaId = colaborador.empresaIds?.[0];
+        if (!primaryEmpresaId) return;
+        const empresa = getEmpresa(primaryEmpresaId);
+        if (!empresasMap[primaryEmpresaId]) {
+          empresasMap[primaryEmpresaId] = { nome: empresa?.nome || "Desconhecida", count: 0, custo: 0 };
         }
-        empresas[empresaId].count++;
-        empresas[empresaId].custo += alocacao.custoMensal;
+        empresasMap[primaryEmpresaId].count++;
+        empresasMap[primaryEmpresaId].custo += alocacao.custoMensal;
       }
     });
-    return Object.values(empresas);
+    return Object.values(empresasMap);
   }, [alocacoes, getColaborador, getEmpresa]);
 
   if (!squad) {
@@ -111,18 +112,25 @@ const SquadDetailPage = ({ params }: SquadDetailPageProps) => {
     toast.success("Squad encerrado!");
   };
 
-  const handleAddMember = () => {
+  const handleAddMember = async () => {
     if (!selectedColaborador) {
       toast.error("Selecione um colaborador");
       return;
     }
-    criarAlocacao({
+
+    const result = await criarAlocacao({
       colaboradorId: selectedColaborador,
       squadId: id,
       papel: selectedPapel,
       percentual,
       dataInicio: new Date(),
     });
+
+    if (!result) {
+      toast.error("Erro ao adicionar membro. Tente novamente.");
+      return;
+    }
+
     atualizarCustoMensal(id, calcularCustoSquad(id));
     setShowAddMemberModal(false);
     setSelectedColaborador("");
@@ -143,14 +151,15 @@ const SquadDetailPage = ({ params }: SquadDetailPageProps) => {
     <Layout
       title={squad.nome}
       subtitle={squad.objetivo}
-      actions={
+    >
+      <div className="mb-6">
         <Link href="/squads">
-          <Button variant="outline" leftIcon={<ArrowLeft className="h-4 w-4" />}>
-            Voltar
+          <Button variant="ghost" size="sm" leftIcon={<ArrowLeft className="h-4 w-4" />}>
+            Voltar para Squads
           </Button>
         </Link>
-      }
-    >
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           <Card>
@@ -196,7 +205,9 @@ const SquadDetailPage = ({ params }: SquadDetailPageProps) => {
                 <div className="space-y-3">
                   {alocacoes.map((alocacao) => {
                     const colaborador = getColaborador(alocacao.colaboradorId);
-                    const empresa = colaborador ? getEmpresa(colaborador.empresaId) : null;
+                    const empresa = colaborador?.empresaIds?.[0]
+                      ? getEmpresa(colaborador.empresaIds[0])
+                      : null;
                     return (
                       <div
                         key={alocacao.id}

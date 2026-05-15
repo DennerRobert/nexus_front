@@ -18,6 +18,7 @@ export interface Cliente {
   id: string;
   nome: string;
   origem: OrigemCliente;
+  empresaId?: string;
   naturezaJuridica?: NaturezaJuridica;
   cnpj?: string;
   email?: string;
@@ -31,6 +32,7 @@ export interface Cliente {
 export interface ClienteFormData {
   nome: string;
   origem: OrigemCliente;
+  empresaId?: string;
   naturezaJuridica?: NaturezaJuridica;
   cnpj?: string;
   email?: string;

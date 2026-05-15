@@ -1,259 +1,224 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
-import { type ColumnDef } from "@tanstack/react-table";
 import { Layout } from "@/components/Layout";
-import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/Button";
-import { Badge, type BadgeVariant } from "@/components/ui/Badge";
-import { StatCard } from "@/components/ui/StatCard";
-import { KanbanDemandas } from "@/components/KanbanDemandas";
-import { EtapaBadge } from "@/components/EtapaBadge";
+import { FormInovacao } from "@/components/FormularioDemanda/FormInovacao";
+import { FormOperacional } from "@/components/FormularioDemanda/FormOperacional";
+import { FormEstrategico } from "@/components/FormularioDemanda/FormEstrategico";
 import { useEmpresaStore } from "@/stores/empresa.store";
-import { useDemandasContexto } from "@/hooks/useContextoData";
-import { usePermissoes } from "@/hooks/usePermissoes";
 import { useAuth } from "@/hooks/useAuth";
-import type { Demanda, StatusDemanda } from "@/interfaces/demanda.interface";
+import { usePermissoes } from "@/hooks/usePermissoes";
 import {
-  STATUS_DEMANDA_LABELS,
-  HORIZONTE_INOVACAO_LABELS,
-} from "@/interfaces/demanda.interface";
-import { ETAPA_DEMANDA_LABELS } from "@/interfaces/etapa-demanda.interface";
-import { formatDate } from "@/utils/formatters";
+  FORMULARIO_TIPO_LABELS,
+  type FormularioTipo,
+} from "@/interfaces/empresa.interface";
 import { cn } from "@/utils/cn";
 import {
-  Plus,
-  FileText,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Eye,
   Lightbulb,
-  Table,
-  LayoutGrid,
+  Wrench,
+  Target,
+  ChevronDown,
+  Building2,
+  LayoutList,
 } from "lucide-react";
 
-const statusVariantMap: Record<StatusDemanda, BadgeVariant> = {
-  rascunho: "secondary",
-  em_analise: "info",
-  aguardando_aprovacao: "warning",
-  aprovada: "success",
-  em_ajustes: "warning",
-  rejeitada: "danger",
-  convertida: "primary",
+const FORMULARIO_TIPO_ICON: Record<FormularioTipo, typeof Lightbulb> = {
+  inovacao: Lightbulb,
+  operacional: Wrench,
+  estrategico: Target,
 };
 
-type VisualizacaoTipo = "tabela" | "kanban";
+const FORMULARIO_TIPO_COLOR: Record<FormularioTipo, string> = {
+  inovacao: "text-cyan-400 bg-cyan-500/15 border-cyan-500/30",
+  operacional: "text-amber-400 bg-amber-500/15 border-amber-500/30",
+  estrategico: "text-violet-400 bg-violet-500/15 border-violet-500/30",
+};
 
 const DemandasPage = () => {
-  const { demandas } = useDemandasContexto();
-  const { getById: getEmpresa } = useEmpresaStore();
-  const { getRestricoes, podeExecutarAcao } = usePermissoes();
-  const { usuarioId } = useAuth();
+  const { usuario } = useAuth();
+  const { getById: getEmpresa, getAll: getEmpresas } = useEmpresaStore();
+  const { podeExecutarAcao } = usePermissoes();
 
-  // Estado da visualização
-  const [visualizacao, setVisualizacao] = useState<VisualizacaoTipo>("tabela");
-
-  // Verifica restrições de permissão
-  const restricoes = getRestricoes("demandas");
-  const apenasVitrineIdeias = restricoes?.apenasVitrineIdeias || false;
   const podeCriar = podeExecutarAcao("demandas", "criar");
 
-  // Filtra demandas baseado nas permissões
-  // Se só pode ver vitrine de ideias, mostra apenas aprovadas/convertidas
-  const demandasFiltradas = apenasVitrineIdeias
-    ? demandas.filter((d) => d.status === "aprovada" || d.status === "convertida")
-    : demandas;
+  // Empresas que o usuário tem acesso, ordenadas alfabeticamente
+  const empresasDoUsuario = useMemo(() => {
+    if (!usuario) return [];
+    const ids = usuario.empresaIds ?? [];
+    return getEmpresas()
+      .filter((e) => e.ativa && ids.includes(e.id))
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }, [usuario, getEmpresas]);
 
-  const stats = useMemo(() => {
-    const total = demandasFiltradas.length;
-    const emAnalise = demandasFiltradas.filter((d) => d.status === "em_analise").length;
-    const aguardando = demandasFiltradas.filter((d) => d.status === "aguardando_aprovacao").length;
-    const aprovadas = demandasFiltradas.filter((d) => d.status === "aprovada" || d.status === "convertida").length;
+  // Empresa selecionada começa com a empresa principal do usuário
+  const empresaPrincipalId = usuario?.empresaId ?? empresasDoUsuario[0]?.id ?? "";
+  const [empresaSelecionadaId, setEmpresaSelecionadaId] = useState<string>(empresaPrincipalId);
+  const [dropdownAberto, setDropdownAberto] = useState(false);
 
-    return { total, emAnalise, aguardando, aprovadas };
-  }, [demandasFiltradas]);
+  const empresaSelecionada = getEmpresa(empresaSelecionadaId) ?? empresasDoUsuario[0];
+  const tipo = (empresaSelecionada?.formularioTipo ?? "inovacao") as FormularioTipo;
+  const Icon = FORMULARIO_TIPO_ICON[tipo];
 
-  const columns: ColumnDef<Demanda>[] = useMemo(
-    () => [
-      {
-        accessorKey: "titulo",
-        header: "Título",
-        cell: ({ row }) => (
-          <div>
-            <p className="font-medium text-slate-100">{row.original.titulo}</p>
-            <p className="text-xs text-slate-500">
-              Por {row.original.nomeProponente}
-            </p>
-          </div>
-        ),
-      },
-      {
-        accessorKey: "empresaUnidadeApoioId",
-        header: "Unidade",
-        cell: ({ row }) => {
-          const empresa = getEmpresa(row.original.empresaUnidadeApoioId);
-          return empresa?.nome || "-";
-        },
-      },
-      {
-        accessorKey: "etapa",
-        header: "Etapa",
-        cell: ({ row }) => (
-          <EtapaBadge etapa={row.original.etapa} size="sm" />
-        ),
-      },
-      {
-        accessorKey: "status",
-        header: "Status",
-        cell: ({ row }) => (
-          <Badge variant={statusVariantMap[row.original.status]}>
-            {STATUS_DEMANDA_LABELS[row.original.status]}
-          </Badge>
-        ),
-      },
-      {
-        accessorKey: "horizonteInovacao",
-        header: "Horizonte",
-        cell: ({ row }) => (
-          <Badge variant="secondary" className="text-xs">
-            {HORIZONTE_INOVACAO_LABELS[row.original.horizonteInovacao].split(" - ")[0]}
-          </Badge>
-        ),
-      },
-      {
-        accessorKey: "prazoDesejado",
-        header: "Prazo Desejado",
-        cell: ({ row }) => formatDate(row.original.prazoDesejado),
-      },
-      {
-        accessorKey: "createdAt",
-        header: "Criada em",
-        cell: ({ row }) => formatDate(row.original.createdAt),
-      },
-      {
-        id: "actions",
-        header: "",
-        cell: ({ row }) => (
-          <Link href={`/demandas/${row.original.id}`}>
-            <Button variant="ghost" size="sm">
-              <Eye className="h-4 w-4" />
-            </Button>
-          </Link>
-        ),
-      },
-    ],
-    [getEmpresa]
-  );
+  if (!podeCriar) {
+    return (
+      <Layout title="Demandas" subtitle="Você não tem permissão para criar demandas">
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <Building2 className="mb-4 h-12 w-12 text-slate-600" />
+          <p className="text-slate-400">Acesso restrito</p>
+          <p className="mt-1 text-sm text-slate-600">
+            Seu perfil não permite criar demandas neste momento.
+          </p>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout
-      title={apenasVitrineIdeias ? "Vitrine de Ideias" : "Demandas"}
-      subtitle={
-        apenasVitrineIdeias
-          ? "Explore as ideias de inovação aprovadas"
-          : "Gestão de demandas e ideias de inovação"
-      }
-      actions={
-        <div className="flex items-center gap-3">
-          {/* Toggle de visualização - apenas para gestão completa */}
-          {!apenasVitrineIdeias && (
-            <div className="flex items-center rounded-lg border border-slate-700 p-1">
-              <button
-                onClick={() => setVisualizacao("tabela")}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors",
-                  visualizacao === "tabela"
-                    ? "bg-slate-700 text-white"
-                    : "text-slate-400 hover:text-white"
-                )}
-              >
-                <Table className="h-4 w-4" />
-                Tabela
-              </button>
-              <button
-                onClick={() => setVisualizacao("kanban")}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors",
-                  visualizacao === "kanban"
-                    ? "bg-slate-700 text-white"
-                    : "text-slate-400 hover:text-white"
-                )}
-              >
-                <LayoutGrid className="h-4 w-4" />
-                Kanban
-              </button>
-            </div>
-          )}
-          
-          {podeCriar && (
-            <Link href="/demandas/nova">
-              <Button leftIcon={<Plus className="h-4 w-4" />}>
-                {apenasVitrineIdeias ? "Submeter Ideia" : "Nova Demanda"}
-              </Button>
-            </Link>
-          )}
-        </div>
-      }
+      title="Nova Demanda"
+      subtitle="Preencha o formulário abaixo para registrar uma demanda"
     >
       <div className="space-y-6">
-        {/* Cards de estatísticas - esconde para vitrine de ideias */}
-        {!apenasVitrineIdeias && (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              title="Total de Demandas"
-              value={stats.total}
-              icon={FileText}
-            />
-            <StatCard
-              title="Em Análise"
-              value={stats.emAnalise}
-              icon={Clock}
-            />
-            <StatCard
-              title="Aguardando Aprovação"
-              value={stats.aguardando}
-              icon={XCircle}
-            />
-            <StatCard
-              title="Aprovadas/Convertidas"
-              value={stats.aprovadas}
-              icon={CheckCircle}
-            />
-          </div>
-        )}
+        {/* Barra de navegação */}
+        <div className="flex justify-end">
+          <Link href="/demandas/lista">
+            <Button variant="outline" size="sm" leftIcon={<LayoutList className="h-4 w-4" />}>
+              Ver demandas
+            </Button>
+          </Link>
+        </div>
 
-        {/* Banner para vitrine de ideias */}
-        {apenasVitrineIdeias && (
-          <div className="p-4 rounded-lg bg-gradient-to-r from-purple-500/10 to-cyan-500/10 border border-purple-500/30">
+        {/* Seletor de empresa destino */}
+        <div className="relative">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Empresa destino
+          </p>
+          <button
+            type="button"
+            onClick={() => setDropdownAberto((v) => !v)}
+            className={cn(
+              "flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3.5 text-left transition-all",
+              "bg-slate-800/60 hover:bg-slate-800",
+              FORMULARIO_TIPO_COLOR[tipo]
+            )}
+          >
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-purple-500/20">
-                <Lightbulb className="h-5 w-5 text-purple-400" />
+              <div
+                className={cn(
+                  "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg",
+                  FORMULARIO_TIPO_COLOR[tipo]
+                )}
+              >
+                <Icon className="h-4 w-4" />
               </div>
               <div>
-                <h3 className="font-medium text-slate-200">Vitrine de Ideias</h3>
-                <p className="text-sm text-slate-400">
-                  Explore as ideias aprovadas pela comissão de inovação. Você também pode submeter suas próprias ideias!
+                <p className="font-semibold text-slate-100">
+                  {empresaSelecionada?.nome ?? "Selecione uma empresa"}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {empresaSelecionada
+                    ? FORMULARIO_TIPO_LABELS[tipo]
+                    : "Nenhuma empresa disponível"}
+                  {empresaSelecionada?.id === usuario?.empresaId && (
+                    <span className="ml-2 rounded-full bg-slate-700 px-2 py-0.5 text-[10px] text-slate-400">
+                      sua empresa
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
-          </div>
-        )}
+            {empresasDoUsuario.length > 1 && (
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 flex-shrink-0 text-slate-400 transition-transform",
+                  dropdownAberto && "rotate-180"
+                )}
+              />
+            )}
+          </button>
 
-        {/* Conteúdo baseado na visualização */}
-        {visualizacao === "tabela" || apenasVitrineIdeias ? (
-          <DataTable
-            columns={columns}
-            data={demandasFiltradas}
-            searchPlaceholder="Buscar por título..."
-            searchColumn="titulo"
-          />
-        ) : (
-          <KanbanDemandas
-            demandas={demandasFiltradas}
-            usuarioId={usuarioId || "demo-user-id"}
-          />
+          {/* Dropdown de seleção */}
+          {dropdownAberto && empresasDoUsuario.length > 1 && (
+            <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-2xl">
+              {empresasDoUsuario.map((empresa) => {
+                const empTipo = (empresa.formularioTipo ?? "inovacao") as FormularioTipo;
+                const EmpIcon = FORMULARIO_TIPO_ICON[empTipo];
+                const isSelected = empresa.id === empresaSelecionadaId;
+                const isPrincipal = empresa.id === usuario?.empresaId;
+
+                return (
+                  <button
+                    key={empresa.id}
+                    type="button"
+                    onClick={() => {
+                      setEmpresaSelecionadaId(empresa.id);
+                      setDropdownAberto(false);
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-3 px-4 py-3 text-left transition-colors",
+                      isSelected
+                        ? "bg-slate-700/60 text-slate-100"
+                        : "text-slate-300 hover:bg-slate-700/40"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold",
+                        FORMULARIO_TIPO_COLOR[empTipo]
+                      )}
+                    >
+                      <EmpIcon className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate font-medium">{empresa.nome}</p>
+                      <p className="text-xs text-slate-500">
+                        {FORMULARIO_TIPO_LABELS[empTipo]}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {isPrincipal && (
+                        <span className="rounded-full bg-slate-700 px-2 py-0.5 text-[10px] text-slate-400">
+                          sua empresa
+                        </span>
+                      )}
+                      {isSelected && (
+                        <div className="h-2 w-2 rounded-full bg-cyan-400" />
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Formulário da empresa selecionada */}
+        {empresaSelecionada && (
+          <div key={empresaSelecionadaId}>
+            {tipo === "inovacao" && (
+              <FormInovacao
+                empresaId={empresaSelecionada.id}
+                empresaNome={empresaSelecionada.nome}
+                redirectTo="/demandas/lista"
+              />
+            )}
+            {tipo === "operacional" && (
+              <FormOperacional
+                empresaId={empresaSelecionada.id}
+                empresaNome={empresaSelecionada.nome}
+                redirectTo="/demandas/lista"
+              />
+            )}
+            {tipo === "estrategico" && (
+              <FormEstrategico
+                empresaId={empresaSelecionada.id}
+                empresaNome={empresaSelecionada.nome}
+                redirectTo="/demandas/lista"
+              />
+            )}
+          </div>
         )}
       </div>
     </Layout>

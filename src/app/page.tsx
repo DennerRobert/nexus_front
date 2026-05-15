@@ -16,74 +16,51 @@ import {
 } from "recharts";
 import { Layout } from "@/components/Layout";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/Card";
-import { StatCard } from "@/components/ui/StatCard";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { useDemandaStore } from "@/stores/demanda.store";
-import { useProjetoStore } from "@/stores/projeto.store";
-import { useProdutoStore } from "@/stores/produto.store";
-import { useColaboradorStore } from "@/stores/colaborador.store";
-import { useSquadStore } from "@/stores/squad.store";
 import { useEmpresaStore } from "@/stores/empresa.store";
 import { STATUS_DEMANDA_LABELS } from "@/interfaces/demanda.interface";
-import { STATUS_PROJETO_LABELS } from "@/interfaces/projeto.interface";
-import { formatCurrency, formatRelativeDate } from "@/utils/formatters";
+import { ETAPA_DEMANDA_LABELS } from "@/interfaces/etapa-demanda.interface";
+import { formatRelativeDate } from "@/utils/formatters";
+import { cn } from "@/utils/cn";
 import {
   FileText,
-  FolderKanban,
-  Package,
-  Users,
-  TrendingUp,
-  AlertTriangle,
   Clock,
+  CheckCircle,
+  AlertTriangle,
   ArrowRight,
+  TrendingUp,
+  Building2,
 } from "lucide-react";
 
-const COLORS = ["#06b6d4", "#8b5cf6", "#22c55e", "#f59e0b", "#ef4444", "#64748b"];
+const STATUS_COLORS: Record<string, string> = {
+  rascunho: "#64748b",
+  em_analise: "#06b6d4",
+  aguardando_aprovacao: "#f59e0b",
+  aprovada: "#22c55e",
+  em_ajustes: "#f97316",
+  rejeitada: "#ef4444",
+  convertida: "#8b5cf6",
+};
 
 const DashboardPage = () => {
   const { getAll: getDemandas, getPendentes: getDemandasPendentes } = useDemandaStore();
-  const { getAll: getProjetos, getAtivos: getProjetosAtivos } = useProjetoStore();
-  const { getAll: getProdutos, getAtivos: getProdutosAtivos } = useProdutoStore();
-  const { getComOcupacao } = useColaboradorStore();
-  const { getAtivos: getSquadsAtivos } = useSquadStore();
   const { getAll: getEmpresas } = useEmpresaStore();
 
   const demandas = getDemandas();
   const demandasPendentes = getDemandasPendentes();
-  const projetos = getProjetos();
-  const projetosAtivos = getProjetosAtivos();
-  const produtos = getProdutos();
-  const produtosAtivos = getProdutosAtivos();
-  const colaboradores = getComOcupacao();
-  const squadsAtivos = getSquadsAtivos();
-  const empresas = getEmpresas();
+  const empresas = getEmpresas().filter((e) => e.ativa);
 
-  const stats = useMemo(() => {
-    const custoMensalTotal = squadsAtivos.reduce((acc, s) => acc + s.custoMensal, 0);
-    const ocupacaoMedia =
-      colaboradores.length > 0
-        ? colaboradores.reduce((acc, c) => acc + c.ocupacaoAtual, 0) / colaboradores.length
-        : 0;
-    const subalocados = colaboradores.filter((c) => c.ocupacaoAtual < 70).length;
-
-    return { custoMensalTotal, ocupacaoMedia, subalocados };
-  }, [squadsAtivos, colaboradores]);
-
-  const ocupacaoPorEmpresa = useMemo(() => {
-    return empresas.map((empresa) => {
-      const colabs = colaboradores.filter((c) => c.empresaId === empresa.id);
-      const ocupacaoMedia =
-        colabs.length > 0
-          ? colabs.reduce((acc, c) => acc + c.ocupacaoAtual, 0) / colabs.length
-          : 0;
-      return {
-        nome: empresa.nome.split(" ")[0],
-        ocupacao: Math.round(ocupacaoMedia),
-        colaboradores: colabs.length,
-      };
-    });
-  }, [empresas, colaboradores]);
+  const statCards = useMemo(() => {
+    const total = demandas.length;
+    const emAnalise = demandas.filter((d) => d.status === "em_analise").length;
+    const aguardando = demandas.filter((d) => d.status === "aguardando_aprovacao").length;
+    const aprovadas = demandas.filter(
+      (d) => d.status === "aprovada" || d.status === "convertida"
+    ).length;
+    return { total, emAnalise, aguardando, aprovadas };
+  }, [demandas]);
 
   const statusDemandas = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -93,75 +70,122 @@ const DashboardPage = () => {
     return Object.entries(counts).map(([status, value]) => ({
       name: STATUS_DEMANDA_LABELS[status as keyof typeof STATUS_DEMANDA_LABELS] || status,
       value,
+      color: STATUS_COLORS[status] || "#64748b",
     }));
   }, [demandas]);
 
-  const statusProjetos = useMemo(() => {
-    const counts: Record<string, number> = {};
-    projetos.forEach((p) => {
-      counts[p.status] = (counts[p.status] || 0) + 1;
+  const demandasPorEmpresa = useMemo(() => {
+    return empresas.map((empresa) => {
+      const total = demandas.filter((d) => d.empresaUnidadeApoioId === empresa.id).length;
+      const pendentes = demandas.filter(
+        (d) =>
+          d.empresaUnidadeApoioId === empresa.id &&
+          (d.status === "em_analise" || d.status === "aguardando_aprovacao")
+      ).length;
+      return {
+        nome: empresa.nome.split(" ")[0],
+        total,
+        pendentes,
+      };
     });
-    return Object.entries(counts).map(([status, value]) => ({
-      name: STATUS_PROJETO_LABELS[status as keyof typeof STATUS_PROJETO_LABELS] || status,
-      value,
-    }));
-  }, [projetos]);
+  }, [empresas, demandas]);
+
+  const etapasDemandas = useMemo(() => {
+    const counts: Record<string, number> = {};
+    demandas.forEach((d) => {
+      counts[d.etapa] = (counts[d.etapa] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .map(([etapa, total]) => ({
+        etapa: ETAPA_DEMANDA_LABELS[etapa as keyof typeof ETAPA_DEMANDA_LABELS] || etapa,
+        total,
+      }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 6);
+  }, [demandas]);
 
   return (
     <Layout
       title="Dashboard"
-      subtitle="Visão geral do portfólio integrado"
+      subtitle="Acompanhe o status e evolução das demandas"
     >
       <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            title="Demandas Pendentes"
-            value={demandasPendentes.length}
-            subtitle="Aguardando análise/aprovação"
-            icon={FileText}
-          />
-          <StatCard
-            title="Projetos Ativos"
-            value={projetosAtivos.length}
-            subtitle={`De ${projetos.length} total`}
-            icon={FolderKanban}
-          />
-          <StatCard
-            title="Produtos em Operação"
-            value={produtosAtivos.length}
-            subtitle={`De ${produtos.length} total`}
-            icon={Package}
-          />
-          <StatCard
-            title="Custo Mensal"
-            value={formatCurrency(stats.custoMensalTotal)}
-            subtitle="Squads ativos"
-            icon={TrendingUp}
-          />
+        {/* Stat cards de demandas */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="flex items-center gap-4 rounded-xl border border-slate-700/50 bg-slate-800/40 px-5 py-4">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-700/60">
+              <FileText className="h-5 w-5 text-slate-300" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-slate-100">{statCards.total}</p>
+              <p className="text-sm text-slate-500">Total de demandas</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-5 py-4">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-500/20">
+              <Clock className="h-5 w-5 text-cyan-400" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-cyan-400">{statCards.emAnalise}</p>
+              <p className="text-sm text-slate-500">Em análise</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 rounded-xl border border-yellow-500/20 bg-yellow-500/5 px-5 py-4">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-yellow-500/20">
+              <AlertTriangle className="h-5 w-5 text-yellow-400" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-yellow-400">{statCards.aguardando}</p>
+              <p className="text-sm text-slate-500">Aguardando aprovação</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 rounded-xl border border-green-500/20 bg-green-500/5 px-5 py-4">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-500/20">
+              <CheckCircle className="h-5 w-5 text-green-400" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-green-400">{statCards.aprovadas}</p>
+              <p className="text-sm text-slate-500">Aprovadas</p>
+            </div>
+          </div>
         </div>
 
+        {/* Gráficos */}
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Ocupação por Empresa</CardTitle>
-              <CardDescription>Média de ocupação dos colaboradores</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-slate-400" />
+                Demandas por Empresa
+              </CardTitle>
+              <CardDescription>Total e pendentes por empresa</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={ocupacaoPorEmpresa}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis dataKey="nome" stroke="#94a3b8" />
-                    <YAxis stroke="#94a3b8" />
+                  <BarChart data={demandasPorEmpresa} barSize={24}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <XAxis
+                      dataKey="nome"
+                      stroke="#334155"
+                      tick={{ fontSize: 12, fill: "#94a3b8" }}
+                    />
+                    <YAxis
+                      stroke="#334155"
+                      tick={{ fontSize: 12, fill: "#94a3b8" }}
+                      allowDecimals={false}
+                    />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: "#1e293b",
+                        backgroundColor: "#0f172a",
                         border: "1px solid #334155",
                         borderRadius: "8px",
                       }}
-                      labelStyle={{ color: "#f1f5f9" }}
+                      labelStyle={{ color: "#f1f5f9", fontWeight: 600 }}
+                      itemStyle={{ color: "#cbd5e1" }}
                     />
-                    <Bar dataKey="ocupacao" fill="#06b6d4" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="total" fill="#06b6d4" radius={[4, 4, 0, 0]} name="Total" />
+                    <Bar dataKey="pendentes" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Pendentes" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -170,45 +194,50 @@ const DashboardPage = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Status das Demandas</CardTitle>
-              <CardDescription>Distribuição por status</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-slate-400" />
+                Distribuição por Status
+              </CardTitle>
+              <CardDescription>Visão geral do funil de demandas</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-64">
+              <div className="h-48">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={statusDemandas}
                       cx="50%"
                       cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
+                      innerRadius={50}
+                      outerRadius={75}
+                      paddingAngle={4}
                       dataKey="value"
                     >
-                      {statusDemandas.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      {statusDemandas.map((item, index) => (
+                        <Cell key={`cell-${index}`} fill={item.color} />
                       ))}
                     </Pie>
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: "#1e293b",
+                        backgroundColor: "#0f172a",
                         border: "1px solid #334155",
                         borderRadius: "8px",
                       }}
+                      labelStyle={{ color: "#f1f5f9", fontWeight: 600 }}
+                      itemStyle={{ color: "#cbd5e1" }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div className="mt-4 flex flex-wrap justify-center gap-4">
-                {statusDemandas.map((item, index) => (
-                  <div key={item.name} className="flex items-center gap-2">
+              <div className="mt-3 flex flex-wrap gap-3">
+                {statusDemandas.map((item) => (
+                  <div key={item.name} className="flex items-center gap-1.5">
                     <div
-                      className="h-3 w-3 rounded-full"
-                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: item.color }}
                     />
                     <span className="text-xs text-slate-400">
-                      {item.name} ({item.value})
+                      {item.name} <span className="font-medium text-slate-300">({item.value})</span>
                     </span>
                   </div>
                 ))}
@@ -217,127 +246,122 @@ const DashboardPage = () => {
           </Card>
         </div>
 
+        {/* Etapas + Recentes */}
         <div className="grid gap-6 lg:grid-cols-3">
-          <Card>
+          <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Recursos Humanos
-              </CardTitle>
+              <CardTitle>Demandas por Etapa do Fluxo</CardTitle>
+              <CardDescription>Distribuição no pipeline de análise</CardDescription>
             </CardHeader>
             <CardContent>
-              <dl className="space-y-4">
-                <div className="flex justify-between">
-                  <dt className="text-slate-400">Total de Colaboradores</dt>
-                  <dd className="font-medium text-slate-100">{colaboradores.length}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-slate-400">Ocupação Média</dt>
-                  <dd className="font-medium text-cyan-400">
-                    {stats.ocupacaoMedia.toFixed(0)}%
-                  </dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-slate-400">Subalocados (&lt;70%)</dt>
-                  <dd className="font-medium text-yellow-400">{stats.subalocados}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-slate-400">Squads Ativos</dt>
-                  <dd className="font-medium text-slate-100">{squadsAtivos.length}</dd>
-                </div>
-              </dl>
-              <Link href="/colaboradores" className="mt-4 block">
-                <Button variant="outline" size="sm" className="w-full">
-                  Ver Colaboradores
-                </Button>
-              </Link>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={etapasDemandas} layout="vertical" barSize={16}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
+                    <XAxis
+                      type="number"
+                      stroke="#334155"
+                      tick={{ fontSize: 12, fill: "#94a3b8" }}
+                      allowDecimals={false}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="etapa"
+                      stroke="#334155"
+                      tick={{ fontSize: 11, fill: "#94a3b8" }}
+                      width={160}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#0f172a",
+                        border: "1px solid #334155",
+                        borderRadius: "8px",
+                      }}
+                      labelStyle={{ color: "#f1f5f9", fontWeight: 600 }}
+                      itemStyle={{ color: "#cbd5e1" }}
+                    />
+                    <Bar dataKey="total" fill="#8b5cf6" radius={[0, 4, 4, 0]} name="Demandas" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
+                <Clock className="h-5 w-5 text-slate-400" />
                 Demandas Recentes
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {demandas.slice(0, 3).map((demanda) => (
-                <Link
-                  key={demanda.id}
-                  href={`/demandas/${demanda.id}`}
-                  className="mb-3 block rounded-lg border border-slate-700/50 bg-slate-800/30 p-3 transition-colors hover:bg-slate-800"
-                >
-                  <p className="font-medium text-slate-100 truncate">
-                    {demanda.titulo}
-                  </p>
-                  <div className="mt-1 flex items-center justify-between">
-                    <Badge variant="secondary" className="text-xs">
-                      {STATUS_DEMANDA_LABELS[demanda.status]}
-                    </Badge>
-                    <span className="text-xs text-slate-500">
-                      {formatRelativeDate(demanda.createdAt)}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-              <Link href="/demandas" className="mt-2 block">
+              <div className="space-y-3">
+                {demandas.slice(0, 4).map((demanda) => (
+                  <Link
+                    key={demanda.id}
+                    href={`/demandas/${demanda.id}`}
+                    className="block rounded-lg border border-slate-700/50 bg-slate-800/30 p-3 transition-colors hover:bg-slate-800"
+                  >
+                    <p className="truncate text-sm font-medium text-slate-100">
+                      {demanda.titulo}
+                    </p>
+                    <div className="mt-1.5 flex items-center justify-between gap-2">
+                      <Badge variant="secondary" className="text-xs">
+                        {STATUS_DEMANDA_LABELS[demanda.status]}
+                      </Badge>
+                      <span className="text-xs text-slate-600">
+                        {formatRelativeDate(demanda.createdAt)}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+              <Link href="/demandas" className="mt-4 block">
                 <Button variant="ghost" size="sm" className="w-full">
                   Ver todas <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
             </CardContent>
           </Card>
+        </div>
 
+        {/* Alertas de demandas pendentes */}
+        {demandasPendentes.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-yellow-400" />
-                Alertas
+              <CardTitle className="flex items-center gap-2 text-yellow-400">
+                <AlertTriangle className="h-5 w-5" />
+                Atenção necessária
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {stats.subalocados > 0 && (
-                  <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3">
-                    <p className="text-sm text-yellow-400">
-                      {stats.subalocados} colaborador(es) com ocupação abaixo de 70%
-                    </p>
-                  </div>
-                )}
-                {demandasPendentes.length > 0 && (
-                  <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3">
-                    <p className="text-sm text-blue-400">
-                      {demandasPendentes.length} demanda(s) aguardando análise
-                    </p>
-                  </div>
-                )}
-                {projetosAtivos.filter((p) => p.status === "aguardando_aprovacao").length >
-                  0 && (
-                  <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 p-3">
-                    <p className="text-sm text-orange-400">
-                      {
-                        projetosAtivos.filter((p) => p.status === "aguardando_aprovacao")
-                          .length
-                      }{" "}
-                      projeto(s) aguardando aprovação
-                    </p>
-                  </div>
-                )}
-                {stats.subalocados === 0 &&
-                  demandasPendentes.length === 0 &&
-                  projetosAtivos.filter((p) => p.status === "aguardando_aprovacao")
-                    .length === 0 && (
-                    <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-3">
-                      <p className="text-sm text-green-400">
-                        Nenhum alerta no momento
+              <div className="space-y-2">
+                {demandasPendentes.slice(0, 3).map((demanda) => (
+                  <Link
+                    key={demanda.id}
+                    href={`/demandas/${demanda.id}`}
+                    className={cn(
+                      "flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-slate-800",
+                      demanda.status === "aguardando_aprovacao"
+                        ? "border-yellow-500/30 bg-yellow-500/5"
+                        : "border-blue-500/30 bg-blue-500/5"
+                    )}
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-slate-200">
+                        {demanda.titulo}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {STATUS_DEMANDA_LABELS[demanda.status]} · {formatRelativeDate(demanda.createdAt)}
                       </p>
                     </div>
-                  )}
+                    <ArrowRight className="ml-3 h-4 w-4 flex-shrink-0 text-slate-500" />
+                  </Link>
+                ))}
               </div>
             </CardContent>
           </Card>
-        </div>
+        )}
       </div>
     </Layout>
   );

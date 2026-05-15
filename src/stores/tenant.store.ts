@@ -1,11 +1,16 @@
 import { create } from "zustand";
-import { v4 as uuidv4 } from "uuid";
 import type { Tenant, TenantFormData } from "@/interfaces/tenant.interface";
-import { mockEmpresas } from "@/utils/mock-data";
+import { tenantService } from "@/services/tenant.service";
+import { deserialize, deserializeList } from "@/lib/deserialize";
+import { ApiError } from "@/lib/api-client";
+
+const toError = (err: unknown): string =>
+  err instanceof ApiError ? err.message : "Erro inesperado. Tente novamente.";
 
 interface TenantState {
   tenants: Tenant[];
   isLoading: boolean;
+  error: string | null;
 }
 
 interface TenantActions {
@@ -13,106 +18,74 @@ interface TenantActions {
   getById: (id: string) => Tenant | undefined;
   getBySlug: (slug: string) => Tenant | undefined;
   getEmpresasByTenant: (tenantId: string) => string[];
-  create: (data: TenantFormData) => Tenant;
-  update: (id: string, data: Partial<TenantFormData>) => Tenant | undefined;
-  remove: (id: string) => boolean;
-  setLoading: (loading: boolean) => void;
+  fetchAll: () => Promise<void>;
+  create: (data: TenantFormData) => Promise<Tenant | undefined>;
+  update: (id: string, data: Partial<TenantFormData>) => Promise<Tenant | undefined>;
+  remove: (id: string) => Promise<boolean>;
 }
 
 type TenantStore = TenantState & TenantActions;
 
-// Criar mock de tenants baseado nas empresas existentes
-const createMockTenants = (): Tenant[] => {
-  const now = new Date();
-  const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-
-  // Pega os IDs das empresas mockadas
-  const empresaIds = mockEmpresas.map((e) => e.id);
-
-  // Cria dois tenants de exemplo
-  return [
-    {
-      id: uuidv4(),
-      nome: "Grupo Alpha",
-      slug: "grupo-alpha",
-      descricao: "Holding principal com foco em tecnologia e inovação",
-      ativo: true,
-      empresaIds: empresaIds, // Todas as empresas pertencem a este tenant
-      createdAt: threeMonthsAgo,
-      updatedAt: now,
-    },
-    {
-      id: uuidv4(),
-      nome: "Consórcio Beta",
-      slug: "consorcio-beta",
-      descricao: "Consórcio de empresas parceiras",
-      ativo: true,
-      empresaIds: empresaIds.slice(0, 2), // Apenas as duas primeiras empresas
-      createdAt: threeMonthsAgo,
-      updatedAt: now,
-    },
-  ];
-};
-
-const mockTenants = createMockTenants();
-
 export const useTenantStore = create<TenantStore>((set, get) => ({
-  tenants: mockTenants,
+  tenants: [],
   isLoading: false,
+  error: null,
 
-  getAll: () => get().tenants.filter((t) => t.ativo),
+  getAll: () => get().tenants,
 
-  getById: (id: string) => get().tenants.find((t) => t.id === id),
+  getById: (id) => get().tenants.find((t) => t.id === id),
 
-  getBySlug: (slug: string) => get().tenants.find((t) => t.slug === slug),
+  getBySlug: (slug) => get().tenants.find((t) => t.slug === slug),
 
-  getEmpresasByTenant: (tenantId: string) => {
-    const tenant = get().getById(tenantId);
-    return tenant?.empresaIds || [];
+  getEmpresasByTenant: (tenantId) => {
+    const tenant = get().tenants.find((t) => t.id === tenantId);
+    return tenant?.empresaIds ?? [];
   },
 
-  create: (data: TenantFormData) => {
-    const novoTenant: Tenant = {
-      ...data,
-      id: uuidv4(),
-      ativo: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    set((state) => ({
-      tenants: [...state.tenants, novoTenant],
-    }));
-    return novoTenant;
-  },
-
-  update: (id: string, data: Partial<TenantFormData>) => {
-    let updated: Tenant | undefined;
-    set((state) => ({
-      tenants: state.tenants.map((t) => {
-        if (t.id === id) {
-          updated = { ...t, ...data, updatedAt: new Date() };
-          return updated;
-        }
-        return t;
-      }),
-    }));
-    return updated;
-  },
-
-  remove: (id: string) => {
-    const exists = get().tenants.some((t) => t.id === id);
-    if (exists) {
-      set((state) => ({
-        tenants: state.tenants.map((t) =>
-          t.id === id ? { ...t, ativo: false, updatedAt: new Date() } : t
-        ),
-      }));
+  fetchAll: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const data = await tenantService.getAll();
+      set({ tenants: deserializeList(data), isLoading: false });
+    } catch (err) {
+      set({ error: toError(err), isLoading: false });
     }
-    return exists;
   },
 
-  setLoading: (loading: boolean) => set({ isLoading: loading }),
-}));
+  create: async (data) => {
+    try {
+      const novo = await tenantService.create(data);
+      const deserialized = deserialize(novo);
+      set((state) => ({ tenants: [...state.tenants, deserialized] }));
+      return deserialized;
+    } catch (err) {
+      set({ error: toError(err) });
+      return undefined;
+    }
+  },
 
-// Exportar os tenants mockados para uso em outras stores
-export { mockTenants };
+  update: async (id, data) => {
+    try {
+      const updated = await tenantService.update(id, data);
+      const deserialized = deserialize(updated);
+      set((state) => ({
+        tenants: state.tenants.map((t) => (t.id === id ? deserialized : t)),
+      }));
+      return deserialized;
+    } catch (err) {
+      set({ error: toError(err) });
+      return undefined;
+    }
+  },
+
+  remove: async (id) => {
+    try {
+      await tenantService.remove(id);
+      set((state) => ({ tenants: state.tenants.filter((t) => t.id !== id) }));
+      return true;
+    } catch (err) {
+      set({ error: toError(err) });
+      return false;
+    }
+  },
+}));

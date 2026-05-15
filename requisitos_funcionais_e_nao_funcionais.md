@@ -1,5 +1,5 @@
 # Sistema de Gestão de Portfólio Integrado (SGPI)
-## Documento de Requisitos - Versão 2.2
+## Documento de Requisitos - Versão 2.5
 
 ---
 
@@ -344,6 +344,23 @@ flowchart TB
 | **Perfil de Usuario** | Role/cargo do usuário que define suas permissões no sistema (ex: Administrador, Gestor de Inovação) |
 | **Permissão** | Direito de executar uma ação específica (visualizar, criar, editar, aprovar) em um módulo |
 | **Autorização** | Processo de verificação de permissões antes de permitir acesso a recursos ou ações |
+| **Sprint** | Ciclo de desenvolvimento de duração fixa (padrão: 14 dias), agrupando tarefas de um projeto |
+| **Sprint Ativa** | Sprint com status "ativa", na qual o squad está trabalhando atualmente |
+| **Registro de Horas** | Apontamento de horas trabalhadas por um colaborador em uma tarefa específica |
+| **Aprovação de Horas** | Processo de validação dos registros de horas por um aprovador autorizado |
+| **Comentário de Tarefa** | Mensagem textual vinculada a uma tarefa, registrada por um membro do squad |
+| **Notificação In-App** | Alerta exibido dentro do sistema, gerado por eventos relevantes (demanda aprovada, tarefa atribuída, etc.) |
+| **Categoria de Notificação** | Classificação da notificação por origem: demanda, projeto, tarefa |
+| **Kanban Configurável** | Quadro Kanban cujas colunas e visibilidade podem ser personalizadas por empresa |
+| **Formulário Customizável** | Conjunto de campos dinâmicos de uma empresa para capturar informações específicas em demandas |
+| **Campo de Formulário** | Elemento individual de um formulário customizável (texto, número, data, seleção, etc.) |
+| **Setor** | Agrupamento organizacional global que classifica colaboradores por área de atuação (ex: TI, Financeiro, RH) |
+| **Saúde do Projeto** | Indicador calculado do status do projeto em relação ao cronograma: No Prazo, Atenção ou Crítico |
+| **Previsão de Conclusão** | Data estimada de término do projeto baseada na velocidade atual de entrega de tarefas |
+| **Tendência de Atraso** | Projeção de quantos dias o projeto pode atrasar com base no ritmo atual versus velocidade necessária |
+| **Tipo de Campo** | Formato de entrada de dados em um campo de formulário customizável (texto, número, data, seleção, múltipla escolha) |
+| **Etapa Visível** | Etapa do fluxo de demandas configurada para aparecer no Kanban da empresa |
+| **Score de Saúde** | Indicador numérico (No Prazo / Atenção / Crítico) que representa o estado geral do projeto com base em progresso e prazo |
 
 ---
 
@@ -486,6 +503,12 @@ Grupo Econômico
    - **Intercompany**: Atende empresas do grupo
    - **Interno**: Uso exclusivo da empresa dona
 
+**Campos de dados relevantes na entidade Demanda**:
+- `squadSugeridoId`: referência ao squad proposto pelo pipeline de análise (RF08). Preenchido automaticamente após execução do pipeline; vincula a demanda ao squad sugerido antes da criação formal do projeto.
+- `exibirVitrine`: flag booleana que controla se a demanda aparece na vitrine de ideias (visível a todos os colaboradores).
+- `comiteId`: comitê responsável por avaliar a demanda (preenchido quando encaminhada para análise de comitê).
+- `historicoEtapas`: registro completo de todas as transições de etapa com data, usuário, observação e `justificativa` da mudança.
+
 **Regras de Negócio**:
 - RN01.1: Qualquer colaborador autenticado pode cadastrar uma demanda (não apenas gestores)
 - RN01.2: Demanda inicial NÃO exige empresa dona (será definida após análise do squad)
@@ -501,6 +524,7 @@ Grupo Econômico
   * Aprovação da comitiva que avaliou a entrega
 - RN01.11: Ao converter para produto, sistema solicita definição do "Dono de Operação" (responsável pela sustentação)
 - RN01.12: Demanda pode atender múltiplos clientes simultaneamente
+- RN01.13: Toda transição de etapa DEVE registrar no histórico: etapa anterior, etapa nova, usuário responsável, data/hora e justificativa (quando aplicável)
 
 ---
 
@@ -571,8 +595,10 @@ Grupo Econômico
        - Dados: SQL, Python, Spark, Airflow, Power BI, Tableau, etc.
        - I.A: Python, TensorFlow, PyTorch, LangChain, OpenAI, etc.
      * **Tecnologias customizadas**: Possibilidade de adicionar tecnologias não listadas
-   - Custo/hora (visível apenas para RH/Financeiro/Diretoria)
+   - Custo/hora (visibilidade controlada por perfil — ver RN03.2)
    - Carga horária contratual (ex: 160h/mês)
+
+> **Débito técnico — custo/hora por empresa (v1):** Na implementação atual do frontend, `custoHora` e `cargaHorariaMensal` são campos únicos no cadastro do colaborador (não vinculados a uma empresa específica). O modelo de dados definitivo prevê a tabela `vinculos_empregaticio`, que armazena esses valores **por empresa**, permitindo que um mesmo colaborador tenha custos distintos em cada empresa do grupo para fins de rateio intercompany. A migração desse campo para o modelo por-empresa ocorrerá na integração com o backend.
 
 2. Registrar alocações:
    - Projeto/Produto
@@ -587,7 +613,10 @@ Grupo Econômico
 
 **Regras de Negócio**:
 - RN03.1: A soma de alocações de um colaborador NÃO PODE exceder 100%
-- RN03.2: Custo/hora individual só é visível para perfis: RH, Financeiro, Diretoria
+- RN03.2: Custo/hora individual é visível conforme o perfil do usuário autenticado:
+  - **Acesso total** (`administrador`, `financeiro`, `rh`): vê custo/hora de qualquer colaborador
+  - **Acesso restrito ao setor** (`gestor_inovacao`, `analista_inovacao`): vê custo/hora apenas dos colaboradores pertencentes ao próprio setor
+  - **Sem acesso** (demais perfis): o campo custo/hora é completamente oculto na interface
 - RN03.3: Para cálculo de rateio intercompany, usa-se o custo/hora da empresa de origem do colaborador
 
 ---
@@ -799,6 +828,303 @@ Grupo Econômico
 - RN15.6: Exportação está disponível em qualquer status
 - RN15.7: Planejamento aprovado pode ser editado, mas requer nova aprovação
 - RN15.8: Geração utiliza dados da demanda: problema, solução, benefícios, recursos, horizonte de inovação
+
+---
+
+### RF16: Gestão de Sprints
+
+**Descrição**: Sistema de organização de ciclos de desenvolvimento dentro de projetos em execução. Cada sprint agrupa tarefas em um período fixo, permitindo planejamento incremental e mensuração de velocidade do squad.
+
+**Referências**: Integra com RF13 (Kanban de tarefas), RF03 (colaboradores do squad), RF17 (registro de horas)
+
+**Funcionalidades**:
+
+1. **Ciclo de Vida da Sprint**:
+   - **Planejamento**: Sprint criada, aguardando início
+   - **Ativa**: Sprint em andamento (apenas uma ativa por projeto)
+   - **Concluída**: Sprint encerrada com tarefas finalizadas
+   - **Cancelada**: Sprint encerrada antes do fim planejado
+
+2. **Criação de Sprint**:
+   - Nome da sprint (ex: "Sprint 1", "Sprint de Homologação")
+   - Objetivo da sprint (descrição do foco do ciclo)
+   - Data de início e data de fim
+   - Número sequencial gerado automaticamente
+   - Status inicial: Planejamento
+
+3. **Gestão de Sprint**:
+   - **Iniciar Sprint**: Muda status de Planejamento para Ativa
+   - **Concluir Sprint**: Fecha a sprint; tarefas não concluídas retornam ao Backlog (sem sprint)
+   - **Cancelar Sprint**: Encerra antecipadamente; remove associação de todas as tarefas
+   - **Editar Sprint**: Permite ajustar nome, objetivo e datas enquanto em Planejamento
+
+4. **Visualização no Kanban**:
+   - Header acima do quadro Kanban exibindo: nome, objetivo, período e barra de progresso
+   - Progresso calculado como: tarefas concluídas / total de tarefas da sprint
+   - Seletor de sprint (dropdown) para filtrar tarefas por sprint no Kanban
+
+5. **Associação de Tarefas a Sprints**:
+   - Tarefa pode ser vinculada a uma sprint na criação ou edição
+   - Tarefas sem sprint aparecem no Backlog
+   - Vinculação automática baseada em status (tarefas em progresso → sprint ativa; concluídas → última concluída)
+
+6. **Progresso da Sprint**:
+   - Total de tarefas na sprint
+   - Quantidade de tarefas concluídas
+   - Percentual de progresso (concluídas / total × 100)
+
+**Regras de Negócio**:
+- RN16.1: Apenas projetos com status "Em Execução" podem ter sprints associadas
+- RN16.2: Apenas uma sprint pode estar ativa por projeto simultaneamente
+- RN16.3: Para iniciar uma sprint, não pode haver outra sprint ativa no mesmo projeto
+- RN16.4: Sprints ativas e concluídas não podem ser removidas
+- RN16.5: Ao concluir sprint, tarefas não concluídas são desassociadas (voltam ao Backlog)
+- RN16.6: Ao cancelar sprint, todas as tarefas são desassociadas da sprint
+- RN16.7: Duração padrão de sprint: 14 dias (configurável por empresa)
+- RN16.8: Número da sprint é sequencial e gerado automaticamente
+
+---
+
+### RF17: Registro e Aprovação de Horas por Tarefa
+
+**Descrição**: Sistema de apontamento de horas trabalhadas vinculado a tarefas individuais, com fluxo de aprovação para validação dos registros antes de contabilizar no projeto.
+
+**Referências**: Integra com RF13 (tarefas do projeto), RF03 (colaboradores), RF04 (custos de projeto)
+
+**Funcionalidades**:
+
+1. **Lançamento de Horas**:
+   - Colaborador registra horas em uma tarefa específica
+   - Campos obrigatórios: quantidade de horas (mínimo 0.5), data do trabalho, descrição da atividade
+   - Status inicial: Pendente
+   - Múltiplos registros por tarefa (um colaborador pode ter N registros para a mesma tarefa)
+
+2. **Fluxo de Aprovação**:
+   - **Pendente**: Registro submetido aguardando revisão
+   - **Aprovado**: Horas validadas; atualiza automaticamente `horasRealizadas` na tarefa
+   - **Rejeitado**: Registro recusado com motivo obrigatório informado pelo aprovador
+
+3. **Visualização de Registros**:
+   - Por tarefa: lista de todos os registros com status, data, horas e colaborador
+   - Por colaborador: histórico de todos os registros do profissional
+   - Por projeto: registros pendentes agrupados por projeto
+   - Total de horas aprovadas por tarefa
+
+4. **Gestão de Registros**:
+   - Remoção permitida apenas para registros em status Pendente ou Rejeitado
+   - Registros Aprovados são imutáveis (não podem ser removidos nem editados)
+
+**Regras de Negócio**:
+- RN17.1: Somente o colaborador responsável pela tarefa pode lançar horas
+- RN17.2: Apenas gestores do projeto ou superiores podem aprovar/rejeitar registros
+- RN17.3: Rejeição de registro exige motivo informado pelo aprovador
+- RN17.4: Aprovação de registro atualiza automaticamente as horas realizadas da tarefa
+- RN17.5: Registros aprovados não podem ser removidos ou editados
+- RN17.6: Quantidade mínima de horas por registro: 0.5h
+- RN17.7: Data do registro deve ser anterior ou igual à data atual
+
+---
+
+### RF18: Comentários em Tarefas
+
+**Descrição**: Sistema de comunicação assíncrona dentro de tarefas, permitindo que membros do squad troquem mensagens, registrem decisões e atualizem o contexto do trabalho diretamente na tarefa.
+
+**Referências**: Integra com RF13 (tarefas), RF19 (notificações)
+
+**Funcionalidades**:
+
+1. **Adição de Comentários**:
+   - Qualquer membro do squad pode comentar em tarefas do projeto
+   - Campo de texto livre com suporte a texto simples
+   - Registro automático de autor e timestamp
+
+2. **Listagem de Comentários**:
+   - Exibição cronológica dentro do modal de detalhes da tarefa
+   - Identificação do autor de cada comentário
+   - Data e hora de criação/atualização
+
+3. **Moderação**:
+   - Autor pode editar ou excluir seus próprios comentários
+   - Gestor do projeto pode excluir qualquer comentário
+
+4. **Notificação**:
+   - Ao adicionar comentário em tarefa com responsável diferente do autor, gera notificação in-app para o responsável (RF19)
+
+**Regras de Negócio**:
+- RN18.1: Comentários são vinculados individualmente a tarefas específicas
+- RN18.2: Apenas membros do squad do projeto podem comentar nas tarefas
+- RN18.3: Autor pode editar ou excluir seu próprio comentário a qualquer momento
+- RN18.4: Gestor do projeto pode excluir qualquer comentário
+- RN18.5: Comentário exige conteúdo não vazio (mínimo 1 caractere)
+
+---
+
+### RF19: Central de Notificações In-App
+
+**Descrição**: Sistema centralizado de notificações internas que alerta usuários sobre eventos relevantes do sistema (demandas, projetos, tarefas), com persistência, filtros e ações de gestão.
+
+**Referências**: Integra com RF01 (demandas), RF13 (tarefas/projetos), RF16 (sprints), RF18 (comentários)
+
+**Funcionalidades**:
+
+1. **Tipos de Notificação**:
+   - **Demandas**: demanda_criada, demanda_aprovada, demanda_rejeitada, demanda_em_analise, demanda_ajustes
+   - **Projetos**: projeto_atualizado, marco_proximo, alocacao_criada, sprint_iniciada
+   - **Tarefas**: tarefa_atribuida, comentario_adicionado
+
+2. **Categorias e Filtros**:
+   - Filtro por status: Todas, Não Lidas
+   - Filtro por categoria: Demanda, Projeto, Tarefa
+   - Contador de não lidas exibido no ícone do sino no menu lateral
+
+3. **Ações de Gestão**:
+   - Marcar notificação individual como lida
+   - Marcar todas como lidas
+   - Remover notificação individual
+   - Remover todas as notificações
+
+4. **Navegação**:
+   - Cada notificação possui link direto para a entidade relacionada (demanda, projeto ou tarefa)
+   - Clicar na notificação navega para a página correspondente
+
+5. **Persistência**:
+   - Estado de leitura persiste via localStorage
+   - Notificações são mantidas entre sessões até remoção explícita
+
+**Regras de Negócio**:
+- RN19.1: Notificações são geradas automaticamente pelo sistema a partir de eventos
+- RN19.2: Contador de não lidas é atualizado em tempo real no menu lateral
+- RN19.3: Persistência via localStorage garante manutenção do estado entre recarregamentos
+- RN19.4: Notificações removidas não podem ser recuperadas
+- RN19.5: Ao marcar como lida, o status é atualizado imediatamente na interface
+- RN19.6: Filtro de categoria é mutuamente exclusivo com filtro de status "não lidas"
+
+---
+
+### RF20: Gestão de Setores
+
+**Descrição**: Cadastro e manutenção de setores organizacionais que agrupam e classificam colaboradores, permitindo filtragem por área de atuação e geração de relatórios por setor.
+
+**Referências**: Integra com RF03 (colaboradores utilizam setores), RF09 (parametrização pode considerar setores)
+
+> **Decisão de implementação (v1):** O CRUD de setores está embutido no módulo de Colaboradores — não existe uma rota ou tela dedicada `/setores`. O cadastro de novos setores ocorre inline no formulário de colaboradores (campo multi-select com criação ad-hoc). Uma tela dedicada de gestão de setores poderá ser extraída em versões futuras conforme a necessidade operacional.
+
+**Funcionalidades**:
+
+1. **Cadastro de Setor**:
+   - Nome do setor (obrigatório)
+   - Descrição (opcional)
+   - Status (ativo/inativo)
+
+2. **Gestão de Setores**:
+   - Listar todos os setores com indicador de status
+   - Editar nome e descrição
+   - Ativar/desativar setor sem exclusão de histórico
+   - Busca por nome
+
+3. **Vínculo com Colaboradores**:
+   - Colaborador pode pertencer a múltiplos setores
+   - Listagem de colaboradores por setor
+   - Filtro de colaboradores disponíveis por setor (utilizado no Matchmaking)
+
+**Regras de Negócio**:
+- RN20.1: Setor é uma entidade global (não vinculada a uma empresa específica)
+- RN20.2: Colaborador pode pertencer a múltiplos setores simultaneamente
+- RN20.3: Setor desativado não aparece nas opções de seleção em novos cadastros
+- RN20.4: Setor com colaboradores vinculados pode ser desativado mas não excluído
+- RN20.5: Nome do setor deve ser único no sistema
+
+---
+
+### RF21: Formulário Customizável por Empresa
+
+**Descrição**: Permite que cada empresa configure um formulário personalizado com campos dinâmicos para capturar informações adicionais específicas durante o cadastro de demandas. O formulário é exibido como etapa complementar no fluxo de criação de demandas da empresa.
+
+**Referências**: Integra com RF01 (demandas), RF14 (contexto de empresa)
+
+**Funcionalidades**:
+
+1. **Configuração de Formulário**:
+   - Cada empresa pode ter um formulário customizável ativo por vez
+   - Título e descrição do formulário
+   - Ativação/desativação do formulário sem perda de configuração
+   - Acesso exclusivo para perfil Administrador
+
+2. **Tipos de Campo Suportados**:
+   - **Texto curto** (`texto`): Campo de entrada simples para textos breves
+   - **Texto longo** (`textarea`): Campo de texto expandido para descrições
+   - **Número** (`numero`): Campo numérico com validação de formato
+   - **Data** (`data`): Seletor de data
+   - **Seleção única** (`selecao`): Dropdown com opções predefinidas (escolha 1)
+   - **Múltipla escolha** (`multipla_escolha`): Checkbox com opções predefinidas (escolha N)
+
+3. **Configuração de Campos**:
+   - Label do campo (obrigatório)
+   - Tipo de campo (obrigatório)
+   - Obrigatoriedade (sim/não)
+   - Placeholder (opcional)
+   - Descrição de ajuda (opcional)
+   - Opções de resposta (para campos de seleção)
+   - Ordem de exibição (ajustável via drag-and-drop)
+
+4. **Integração com Demandas**:
+   - Formulário exibido durante criação de demanda se empresa tiver formulário ativo
+   - Respostas armazenadas vinculadas à demanda
+   - Campos obrigatórios bloqueiam envio até preenchimento
+   - **Decisão de design**: As respostas são armazenadas diretamente no campo `dadosCustomizados` (JSONB) da própria entidade `Demanda`, usando o `id` do campo como chave e o valor digitado/selecionado como valor. Essa abordagem foi escolhida pois os campos variam por empresa e mudam ao longo do tempo, tornando uma tabela relacional desnecessariamente complexa para este caso.
+
+5. **Gerenciamento de Campos**:
+   - Adicionar novos campos ao formulário
+   - Editar campos existentes
+   - Remover campos (sem afetar registros anteriores)
+   - Reordenar campos via drag-and-drop
+
+**Regras de Negócio**:
+- RN21.1: Cada empresa pode ter no máximo um formulário ativo por vez
+- RN21.2: Formulário desativado não é exibido no fluxo de criação de demandas
+- RN21.3: Campos de seleção e múltipla escolha DEVEM ter ao menos uma opção cadastrada
+- RN21.4: A ordem dos campos pode ser ajustada a qualquer momento
+- RN21.5: Remoção de campo de formulário ativo não apaga respostas já registradas
+- RN21.6: Apenas Administrador pode criar, editar ou remover formulários e campos
+
+---
+
+### RF22: Kanban Configurável por Empresa (Demandas)
+
+**Descrição**: Permite que administradores de cada empresa personalizem a visualização do Kanban de demandas, configurando quais etapas do fluxo são exibidas, seus títulos customizados e a ordem de exibição. A configuração é por empresa e afeta apenas a visualização, sem interferir nas transições reais do fluxo.
+
+**Referências**: Integra com RF01 (fluxo de demandas e etapas), RF14 (contexto de empresa)
+
+**Funcionalidades**:
+
+1. **Configuração de Etapas Visíveis**:
+   - Exibir ou ocultar cada uma das 10 etapas do fluxo de demandas no Kanban
+   - Etapas ocultadas continuam existindo no fluxo real (não bloqueiam transições)
+   - Configuração salva por empresa (isolada de outras empresas do tenant)
+
+2. **Personalização de Títulos**:
+   - Cada empresa pode definir um título customizado para cada etapa
+   - Título original mantido como padrão se não personalizado
+
+3. **Reordenação de Etapas**:
+   - Ordem de exibição das colunas no Kanban é configurável
+   - Arrastar e soltar para reorganizar etapas
+   - Ordem lógica do fluxo de transições é mantida independente da ordem visual
+
+4. **Aplicação em Tempo Real**:
+   - Alterações na configuração são refletidas imediatamente no Kanban
+   - Demandas em etapas ocultas desaparecem do Kanban mas seguem no sistema
+
+5. **Restauração de Padrões**:
+   - Possibilidade de restaurar configuração padrão (todas as etapas visíveis)
+
+**Regras de Negócio**:
+- RN22.1: Configuração do Kanban é por empresa; cada empresa possui sua própria configuração
+- RN22.2: Ocultar etapa no Kanban NÃO bloqueia transições para essa etapa (fluxo real intacto)
+- RN22.3: Ao menos 1 etapa deve permanecer visível no Kanban
+- RN22.4: Apenas Administrador pode alterar configurações do Kanban de demandas
+- RN22.5: Configuração é persistida por empresa e carregada automaticamente ao abrir o Kanban
+- RN22.6: Demandas em etapas ocultas continuam acessíveis via visualização em tabela
 
 ---
 
@@ -1196,7 +1522,18 @@ Grupo Econômico
      * Entregas parciais
      * Reuniões importantes
      * Decisões relevantes
-   - Cada marco possui: data, título, descrição, responsável e ícone
+   - Cada marco possui: data, título, descrição, responsável e ícone visual
+   - **Ícones disponíveis para marcos manuais**:
+     * `inbox` — Entrada de demanda
+     * `check_circle` — Aprovação / validação
+     * `play_circle` — Início de fase ou execução
+     * `users` — Kickoff / reunião de equipe
+     * `flag` — Marco de sprint ou entrega parcial
+     * `package` — Entrega de produto/artefato
+     * `star` — Destaque / conquista relevante
+     * `alert_triangle` — Alerta / risco identificado
+     * `message_circle` — Feedback / decisão registrada
+     * `calendar` — Evento geral
 
 0.3. **Horas por Integrante do Squad** (na aba Acompanhamento):
    - Lista de colaboradores alocados com:
@@ -1221,11 +1558,22 @@ Grupo Econômico
      * 🟡 **Atenção**: Possíveis desvios identificados
      * 🔴 **Crítico**: Atraso significativo ou risco de não entrega
    - Informações exibidas:
-     * Percentual de conclusão
-     * Dias restantes até o prazo
-     * Tendência de atraso (sim/não)
+     * Percentual de conclusão (0–100%)
+     * Dias restantes até o prazo e total de dias do projeto
+     * Tendência de atraso em dias (valor negativo = adiantado)
      * Previsão de conclusão baseada no ritmo atual
+     * **Velocidade atual**: tarefas concluídas por semana no ritmo atual
+     * **Velocidade necessária**: tarefas por semana necessárias para cumprir o prazo
    - Barra de progresso com indicação de meta vs atual
+
+0.5.1. **Score de Participação por Colaborador** (na aba Acompanhamento):
+   - Métrica individual calculada para cada membro do squad (0–100)
+   - Fatores considerados:
+     * Horas trabalhadas registradas e aprovadas
+     * Quantidade de tarefas concluídas
+     * Complexidade média das tarefas (escala 1–5)
+   - Ranking visual de contribuição da equipe
+   - Permite identificar membros subutilizados ou sobrecarregados
 
 0.6. **Kanban de Tarefas** (na aba Tarefas):
    - Quadro visual com colunas de status:
@@ -1355,6 +1703,48 @@ Grupo Econômico
 
 ---
 
+### RF23: Perfil do Usuário (Autoedição)
+
+**Descrição**: O sistema deve permitir que cada usuário autenticado visualize e gerencie seu próprio perfil, podendo atualizar dados pessoais e alterar sua senha de acesso de forma autônoma.
+
+**Referências**: Integra com RNF01 (autenticação e autorização), RF14 (contexto de tenant e empresa)
+
+**Funcionalidades**:
+
+1. **Visualização do Perfil**:
+   - Exibição dos dados do usuário autenticado:
+     * Nome completo, e-mail, avatar (URL)
+     * Perfil de acesso (somente leitura)
+     * Tenant e empresa(s) vinculadas (somente leitura)
+     * Data de criação da conta
+   - Exibição de todas as empresas às quais o usuário tem acesso
+
+2. **Edição de Dados Pessoais**:
+   - Nome completo
+   - E-mail
+   - URL do avatar
+   - Validação de formato de e-mail antes de salvar
+
+3. **Alteração de Senha**:
+   - Confirmação da senha atual antes de permitir a troca
+   - Nova senha com confirmação (ambas devem ser iguais)
+   - Validação de tamanho mínimo da nova senha (8 caracteres)
+   - Feedback de sucesso ou erro ao usuário
+
+4. **Organização em Abas**:
+   - **Aba Dados Pessoais**: Formulário de edição de nome, e-mail e avatar
+   - **Aba Segurança**: Formulário de alteração de senha
+   - **Aba Empresa**: Detalhes do tenant e empresas vinculadas ao usuário
+
+**Regras de Negócio**:
+- RN23.1: Usuário só pode editar seu próprio perfil (sem acesso ao perfil de outros)
+- RN23.2: Perfil de acesso e vínculo com empresas/tenant NÃO podem ser alterados pelo próprio usuário
+- RN23.3: A troca de senha exige confirmação da senha atual
+- RN23.4: Nova senha e confirmação devem ser idênticas
+- RN23.5: Alterações de dados pessoais são refletidas imediatamente na sessão ativa
+
+---
+
 ## 7. Requisitos Não-Funcionais
 
 ### RNF01: Segurança e Controle de Acesso
@@ -1362,12 +1752,17 @@ Grupo Econômico
 **Descrição**: Proteção de dados sensíveis e controle de acesso baseado em perfis.
 
 **Requisitos**:
-1. **Perfis de Acesso**:
-   - **Colaborador**: Visualiza apenas seus projetos, tarefas e cronogramas
-   - **Gestor de Projeto**: Visualiza custos e equipe dos projetos que gerencia
-   - **Gestor de Empresa**: Visualiza todos os projetos da sua empresa
-   - **RH/Financeiro**: Visualiza custos individuais de colaboradores
-   - **Diretoria**: Acesso total a todos os dados do grupo
+1. **Perfis de Acesso** *(nomenclatura implementada no sistema)*:
+   - **`administrador`**: Acesso total a todos os módulos e dados, incluindo custo/hora de todos os colaboradores
+   - **`financeiro`**: Acesso total ao módulo de Colaboradores; visualiza custo/hora de todos os colaboradores; leitura em Empresas e Clientes
+   - **`rh`**: Acesso total ao módulo de Colaboradores; visualiza custo/hora de todos os colaboradores; leitura em Empresas
+   - **`gestor_inovacao`**: Acesso completo a Demandas e Clientes; leitura em Projetos (abas detalhes/acompanhamento); visualiza custo/hora apenas dos colaboradores do próprio setor
+   - **`analista_inovacao`**: Idêntico ao `gestor_inovacao`; visualiza custo/hora apenas dos colaboradores do próprio setor
+   - **`assistente_inovacao`**: Acesso a Demandas e visualização de Clientes; sem acesso a custo/hora
+   - **`product_owner`**: Demandas (vitrine/submissão) e Projetos dos próprios squads; sem acesso a custo/hora
+   - **`especialista`**: Idêntico ao `product_owner`; sem acesso a custo/hora
+   - **`cliente`**: Apenas visualização e submissão de demandas via vitrine; sem acesso a custo/hora
+   - **`comercial`**: Demandas (vitrine/submissão) e acesso total a Clientes; sem acesso a custo/hora
 
 2. **LGPD/Privacidade**:
    - Dados salariais (custo/hora) criptografados em repouso
@@ -1995,6 +2390,13 @@ Grupo Econômico
 | RF13 | RF01, RF03, RF04, RF08 | Monitoramento depende de projetos, alocações, custos e análise IA |
 | RF14 | RF01, RF02, RF03, RF05 | Multi-tenant depende de estrutura de empresas e projetos |
 | RF15 | RF01, RF08, RF13 | Planejamento depende de demanda, IA para geração e aba no projeto |
+| RF16 | RF13, RF03 | Sprints dependem de projetos e colaboradores/tarefas |
+| RF17 | RF16, RF03 | Registro de horas depende de sprints/tarefas e colaboradores |
+| RF18 | RF13 | Comentários dependem de tarefas do projeto |
+| RF19 | RF01, RF13, RF16 | Notificações são geradas por eventos de projetos, demandas e tarefas |
+| RF20 | RF03 | Setores são utilizados na classificação e filtragem de colaboradores |
+| RF21 | RF01, RF14 | Formulários customizáveis são exibidos durante a criação de demandas por empresa |
+| RF22 | RF01, RF14 | Kanban de demandas utiliza configurações de visibilidade de etapas por empresa |
 
 ---
 
@@ -2231,6 +2633,65 @@ Grupo Econômico
 - **RN-D06**: Múltiplos anexos podem ser vinculados a uma demanda
 - **RN-D07**: Demanda pode ser visualizada em formato de tabela ou Kanban (10 colunas)
 - **RN-D08**: Drag-and-drop no Kanban valida transições permitidas antes de aplicar mudança
+- **RN-D09**: Kanban de demandas pode ser configurado por empresa (etapas visíveis e ordem)
+- **RN-D10**: Configuração do Kanban é por empresa; etapas ocultas não afetam o fluxo de transições
+
+### RN de Sprints (RN-SP)
+- **RN-SP01**: Apenas projetos com status "Em Execução" podem ter sprints criadas
+- **RN-SP02**: Apenas uma sprint pode estar ativa por projeto simultaneamente
+- **RN-SP03**: Para iniciar uma sprint, não pode haver outra sprint ativa no mesmo projeto
+- **RN-SP04**: Sprints ativas e concluídas não podem ser removidas
+- **RN-SP05**: Ao concluir sprint, tarefas não concluídas são desassociadas (voltam ao Backlog)
+- **RN-SP06**: Ao cancelar sprint, todas as tarefas da sprint ficam sem sprint associada
+- **RN-SP07**: Duração padrão de sprint: 14 dias (configurável por empresa)
+- **RN-SP08**: Número da sprint é sequencial e gerado automaticamente por projeto
+- **RN-SP09**: Progresso da sprint = (tarefas concluídas / total de tarefas da sprint) × 100
+- **RN-SP10**: Sprint em status Planejamento pode ser editada (nome, objetivo, datas)
+
+### RN de Registro de Horas (RN-RH)
+- **RN-RH01**: Quantidade mínima de horas por registro é 0.5h
+- **RN-RH02**: Data do registro deve ser anterior ou igual à data atual
+- **RN-RH03**: Registros aprovados não podem ser removidos ou editados
+- **RN-RH04**: Aprovação de registro atualiza automaticamente `horasRealizadas` na tarefa
+- **RN-RH05**: Rejeição de registro exige motivo informado pelo aprovador
+- **RN-RH06**: Registros com status Pendente ou Rejeitado podem ser removidos pelo colaborador
+- **RN-RH07**: Apenas gestores do projeto ou superiores podem aprovar ou rejeitar registros
+
+### RN de Notificações In-App (RN-NT)
+- **RN-NT01**: Notificações são geradas automaticamente pelo sistema a partir de eventos relevantes
+- **RN-NT02**: Contador de não lidas é exibido no menu lateral (ícone de sino)
+- **RN-NT03**: Estado de leitura das notificações persiste via localStorage entre sessões
+- **RN-NT04**: Notificações removidas não podem ser recuperadas
+- **RN-NT05**: Cada notificação possui link direto para a entidade relacionada
+- **RN-NT06**: Filtro de categoria (demanda, projeto, tarefa) e filtro de leitura (todas, não lidas) são independentes
+- **RN-NT07**: Ao marcar como lida, o status é atualizado imediatamente (sem recarregar)
+
+### RN de Formulário Customizável de Empresa (RN-FC)
+- **RN-FC01**: Cada empresa pode ter no máximo um formulário customizável ativo por vez
+- **RN-FC02**: Tipos de campo disponíveis: texto curto, texto longo, número, data, seleção única, múltipla escolha
+- **RN-FC03**: Campos podem ser configurados como obrigatórios ou opcionais
+- **RN-FC04**: A ordem dos campos pode ser ajustada via drag-and-drop
+- **RN-FC05**: Formulário desativado não é exibido no fluxo de criação de demandas
+- **RN-FC06**: Campos de seleção DEVEM ter ao menos uma opção cadastrada para serem válidos
+- **RN-FC07**: Remoção de campo não apaga respostas anteriores já registradas em demandas
+- **RN-FC08**: Apenas o perfil Administrador pode criar, editar ou remover formulários e campos
+
+### RN de Kanban Configurável de Demandas (RN-KC)
+- **RN-KC01**: Configuração do Kanban é por empresa; cada empresa possui sua própria configuração independente
+- **RN-KC02**: Ocultar etapa no Kanban NÃO bloqueia transições para essa etapa (fluxo real permanece intacto)
+- **RN-KC03**: Ao menos 1 etapa deve permanecer visível no Kanban em qualquer configuração
+- **RN-KC04**: Apenas Administrador pode alterar configurações do Kanban de demandas
+- **RN-KC05**: Configuração é persistida por empresa e carregada automaticamente ao abrir o Kanban
+- **RN-KC06**: Demandas em etapas ocultas continuam acessíveis via visualização em tabela
+- **RN-KC07**: Título personalizado por etapa é opcional; etapa sem título usa nome padrão do sistema
+
+### RN de Setores (RN-SET)
+- **RN-SET01**: Setor é uma entidade global, não vinculada a uma empresa específica
+- **RN-SET02**: Colaborador pode pertencer a múltiplos setores simultaneamente
+- **RN-SET03**: Setor desativado não aparece nas opções de seleção em novos cadastros de colaboradores
+- **RN-SET04**: Setor com colaboradores vinculados pode ser desativado, mas não excluído
+- **RN-SET05**: Nome do setor deve ser único no sistema (sem duplicatas)
+- **RN-SET06**: Vínculo de colaborador com setor não é afetado pela desativação do setor (histórico preservado)
 
 ---
 
@@ -2282,6 +2743,23 @@ Grupo Econômico
 - **Precisão de Horas**: Desvio entre horas registradas e estimadas (Meta: < 20%)
 - **Cobertura de Score**: % de membros de squad com score de participação calculado (Meta: 100%)
 
+### Métricas de Sprints
+- **Velocidade de Sprint**: Pontos/horas entregues por sprint (Baseline a definir)
+- **Taxa de Conclusão de Sprint**: % de tarefas concluídas dentro do planejado (Meta: > 80%)
+- **Uso de Sprints**: % de projetos em execução com sprints criadas (Meta: > 90%)
+- **Previsibilidade**: Variação entre velocidade planejada e realizada (Meta: < 20%)
+
+### Métricas de Registro de Horas
+- **Taxa de Lançamento de Horas**: % de horas estimadas que possuem registro (Meta: > 85%)
+- **Tempo Médio de Aprovação**: Dias entre criação e aprovação do registro (Meta: < 2 dias)
+- **Taxa de Rejeição**: % de registros rejeitados (Baseline a definir)
+- **Atraso de Lançamento**: % de apontamentos feitos com > 3 dias de atraso (Meta: < 10%)
+
+### Métricas de Notificações
+- **Taxa de Leitura**: % de notificações lidas dentro de 24h (Meta: > 80%)
+- **Engajamento com Notificações**: % de notificações que resultam em ação no sistema (Baseline a definir)
+- **Volume de Notificações**: Quantidade média de notificações por usuário por semana (Baseline a definir)
+
 ### Métricas de Multi-Tenant
 - **Alternância de Contexto**: Frequência média de troca de contexto por usuário/dia (Baseline a definir)
 - **Uso de Visão Consolidada**: % de acessos com "Todas as Unidades" selecionado (Baseline a definir)
@@ -2316,6 +2794,22 @@ Grupo Econômico
 - **Taxa de Devolução**: % de demandas que passam pela etapa "Devolução Proponente" (Baseline a definir)
 - **Uso do Kanban**: % de usuários que utilizam visualização Kanban vs Tabela (Baseline a definir)
 
+### Métricas de Setores (RF20)
+- **Setores Ativos**: Quantidade de setores ativos no sistema (Baseline a definir)
+- **Cobertura de Setores**: % de colaboradores com ao menos um setor associado (Meta: > 90%)
+- **Setores por Colaborador**: Média de setores por colaborador (Baseline a definir)
+
+### Métricas de Formulário Customizável (RF21)
+- **Taxa de Uso**: % de empresas com formulário customizável ativo (Baseline a definir)
+- **Completude de Preenchimento**: % de campos obrigatórios do formulário preenchidos em demandas (Meta: 100%)
+- **Campos por Formulário**: Média de campos configurados por formulário (Baseline a definir)
+- **Taxa de Formulários Ativos**: % de formulários criados que estão ativos (Baseline a definir)
+
+### Métricas de Kanban Configurável (RF22)
+- **Taxa de Personalização**: % de empresas que personalizaram o Kanban de demandas (Baseline a definir)
+- **Etapas Ocultadas**: Média de etapas ocultas por empresa (Baseline a definir)
+- **Uso de Kanban vs Tabela**: % de acessos ao módulo de demandas via Kanban versus tabela (Baseline a definir)
+
 ### Métricas de Qualidade
 - **Disponibilidade**: Uptime do sistema (Meta: 99%)
 - **Performance**: Tempo de resposta médio (Meta: < 500ms)
@@ -2333,7 +2827,7 @@ Grupo Econômico
 ### 13.2 Documentação Técnica
 Após aprovação, criar documentos complementares:
 - **Arquitetura de Software**: Diagrama de componentes, tecnologias, integrações
-- **Modelo de Dados**: Diagrama ER completo com entidades e relacionamentos
+- **Modelo de Dados**: ✅ Disponível em [`modelagem_banco_dados.md`](./modelagem_banco_dados.md) — Modelagem completa com 55+ tabelas, colunas, tipos, restrições e diagrama ERD textual cobrindo todos os 10 domínios do sistema
 - **Guia de Implementação de IA**: Arquitetura de agentes, RAG, prompts
 - **Plano de Testes**: Casos de teste, critérios de aceitação
 - **Plano de Migração**: Como migrar dados de sistemas legados (se houver)
@@ -2523,14 +3017,103 @@ Após aprovação, criar documentos complementares:
 
 **Fim do Documento**
 
-**Versão**: 2.3  
-**Data**: Janeiro 2026  
+**Versão**: 2.5  
+**Data**: Abril 2026  
 **Autor**: Denner Robert e Eduardo de Moura  
 **Status**: Aguardando Validação
 
 ---
 
 ### Changelog
+
+#### Versão 2.5 (Abril 2026)
+- **RF20 - Gestão de Setores**: Novo requisito para CRUD de setores organizacionais:
+  - Cadastro de setores com nome, descrição e status ativo/inativo
+  - Colaborador pode pertencer a múltiplos setores simultaneamente
+  - Setor desativado preserva histórico de vínculos existentes
+  - Setor com colaboradores vinculados pode ser desativado mas não excluído
+  - Nome de setor deve ser único no sistema
+- **RF21 - Formulário Customizável por Empresa**: Elevado de menção no changelog para RF dedicado:
+  - Tipos de campo: texto curto, texto longo, número, data, seleção única, múltipla escolha
+  - Configuração por campo: label, tipo, obrigatoriedade, placeholder, descrição, opções
+  - Drag-and-drop para reordenação dos campos
+  - Ativação/desativação do formulário sem perda de configuração
+  - Campos de seleção exigem ao menos uma opção; remoção de campo preserva respostas anteriores
+  - Exclusivo para perfil Administrador
+- **RF22 - Kanban Configurável por Empresa (Demandas)**: Elevado de menção no changelog para RF dedicado:
+  - Configuração de visibilidade das 10 etapas do fluxo de demandas por empresa
+  - Títulos customizados por etapa (opcional)
+  - Reordenação de colunas via drag-and-drop
+  - Etapas ocultas não afetam transições reais do fluxo
+  - Ao menos 1 etapa deve permanecer visível; demandas ocultas acessíveis via tabela
+- **Modelagem do Banco de Dados**: Documento `modelagem_banco_dados.md` criado com:
+  - 55+ tabelas modeladas em 10 domínios
+  - Colunas, tipos de dado, restrições (PK, FK, NOT NULL, CHECK) e valores padrão
+  - Diagrama ERD textual com todos os relacionamentos
+  - Enums centralizados por domínio
+- **Glossário**: Adicionados termos: Setor, Saúde do Projeto, Previsão de Conclusão, Tendência de Atraso, Tipo de Campo, Etapa Visível, Score de Saúde
+- **Regras de Negócio**: Adicionadas/expandidas seções:
+  - RN-SET (Setores): 6 regras sobre gestão e vínculo de setores
+  - RN-FC (Formulário Customizável): Expandida com RN-FC06, RN-FC07, RN-FC08
+  - RN-KC (Kanban Configurável): Nova seção com 7 regras
+- **Métricas**: Adicionadas seções de métricas para RF20 (Setores), RF21 (Formulários) e RF22 (Kanban)
+- **Matriz de Dependências**: Atualizada com RF20, RF21 e RF22
+- **Seção 13.2**: Referência ao `modelagem_banco_dados.md` como Modelo de Dados concluído
+
+#### Versão 2.4 (Abril 2026)
+- **RF16 - Gestão de Sprints**: Implementado módulo completo de sprints para projetos:
+  - Criação e gerenciamento de sprints com nome, objetivo, número sequencial e datas
+  - Ciclo de vida da sprint: Planejamento → Ativa → Concluída (ou Cancelada)
+  - Regra: apenas uma sprint ativa por projeto por vez
+  - Ao concluir sprint, tarefas não concluídas retornam ao backlog (sem sprint)
+  - Ao cancelar sprint, todas as tarefas da sprint ficam sem sprint associada
+  - Duração padrão: 14 dias (configurável)
+  - Componentes: `SprintSelector`, `SprintHeader`, `SprintModal`
+  - Progresso da sprint: total de tarefas, concluídas e percentual
+  - Projetos em execução iniciam automaticamente com sprints de mock (1 concluída, 1 ativa, 1 em planejamento)
+- **RF17 - Registro de Horas por Tarefa**: Implementado apontamento de horas vinculado a tarefas:
+  - Colaborador registra horas com data, quantidade e descrição
+  - Fluxo de aprovação: Pendente → Aprovado ou Rejeitado
+  - Aprovação atualiza horas realizadas na tarefa automaticamente
+  - Rejeição exige motivo
+  - Registros aprovados não podem ser removidos
+  - Visualização de horas pendentes por projeto e por colaborador
+- **RF18 - Comentários em Tarefas**: Implementado sistema de comentários:
+  - Comentários vinculados individualmente a tarefas
+  - Campos: autor (usuário), conteúdo, data de criação e atualização
+  - Notificação gerada ao adicionar comentário em tarefa com outros colaboradores
+- **RF19 - Central de Notificações In-App**: Implementado sistema completo de notificações:
+  - Notificações categorizadas: demanda, projeto, tarefa
+  - Tipos de evento cobertos: demanda aprovada, demanda rejeitada, demanda em análise, demanda criada, demanda com ajustes, tarefa atribuída, comentário adicionado, marco se aproximando, sprint iniciada, alocação criada, projeto atualizado
+  - Ações disponíveis: marcar como lida, marcar todas como lidas, remover notificação, remover todas
+  - Filtros: todas, não lidas, por categoria (demanda, projeto, tarefa)
+  - Contador de não lidas no menu lateral
+  - Persistência via localStorage (persiste ao recarregar)
+  - Cada notificação possui link direto para a entidade relacionada
+- **RF13 - Integração Sprint no Kanban de Tarefas**:
+  - Tarefas podem ser vinculadas a uma sprint
+  - Seletor de sprint disponível na criação/edição de tarefa
+  - Header da sprint exibido sobre o kanban com progresso e ações
+  - Vinculação automática de tarefas às sprints baseada no status (em progresso/revisão → sprint ativa; concluídas → última sprint concluída)
+- **RF13 - Tela de Detalhes da Tarefa (TarefaDetailModal)**:
+  - Modal completo ao clicar em uma tarefa no Kanban
+  - Exibe informações completas: título, descrição, responsável, sprint, prioridade, estimativa, data limite, tags
+  - Aba de Comentários: listagem e adição de comentários
+  - Aba de Registro de Horas: listagem e lançamento de horas por tarefa
+- **RF09 - Formulário Customizável por Empresa**:
+  - Cada empresa pode ter um formulário personalizado para captura de informações adicionais em demandas
+  - Tipos de campo: texto curto, texto longo, número, data, seleção única, múltipla escolha
+  - Campos configuráveis: label, tipo, obrigatoriedade, placeholder, descrição, opções (para seleção)
+  - Editor de formulário com drag-and-drop para reordenar campos
+  - Ativação/desativação do formulário por empresa
+- **RF13 - Kanban Configurável por Empresa** (demandas):
+  - Administradores podem configurar quais etapas aparecem e em qual ordem no Kanban de demandas
+  - Cada empresa tem sua própria configuração de visibilidade das etapas
+  - Etapas podem ser ocultadas sem afetar o fluxo real de transições
+- **Glossário**: Adicionados termos: Sprint, Sprint Ativa, Registro de Horas, Aprovação de Horas, Comentário de Tarefa, Notificação In-App, Categoria de Notificação, Kanban Configurável, Formulário Customizável, Campo de Formulário
+- **Regras de Negócio**: Adicionadas seções RN-SP (Sprints), RN-RH (Registro de Horas), RN-NT (Notificações)
+- **Métricas**: Adicionadas métricas de Sprints, Registro de Horas e Notificações
+- **Matriz de Dependências**: Atualizada com RF16, RF17, RF18 e RF19
 
 #### Versão 2.3 (Janeiro 2026)
 - **Autenticação e Autorização**: Implementado sistema de autenticação mockado:
@@ -2551,7 +3134,7 @@ Após aprovação, criar documentos complementares:
     * Ideia Recebida, Análise Inicial, Análise Comitê, Devolução Proponente, Readequação Recebida, Validação do Problema, Encaminhado Grupo de Trabalho, Arquivado, Fora do Time Estratégico, Concluído
     * Sistema de transições controladas entre etapas
     * Histórico completo de mudanças de etapa com responsável e data
-  - **Sistema de Avaliação de Critérios**:
+  - **Sistema de Avaliação de Critérios**: 
     * 6 critérios de avaliação com pesos: Clareza e Relevância do Problema (20%), Originalidade e Diferenciação (15%), Alinhamento Estratégico (20%), Viabilidade Técnica e Operacional (15%), Potencial de Retorno e Mercado (20%), Esforço e Recursos Necessários (10%)
     * 11 perguntas no total com escala de 1-5
     * Formulário de avaliação com progresso visual e score ponderado

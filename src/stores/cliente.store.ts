@@ -1,11 +1,16 @@
 import { create } from "zustand";
-import { v4 as uuidv4 } from "uuid";
 import type { Cliente, ClienteFormData } from "@/interfaces/cliente.interface";
-import { mockClientes } from "@/utils/mock-data";
+import { clienteService } from "@/services/cliente.service";
+import { deserialize, deserializeList } from "@/lib/deserialize";
+import { ApiError } from "@/lib/api-client";
+
+const toError = (err: unknown): string =>
+  err instanceof ApiError ? err.message : "Erro inesperado. Tente novamente.";
 
 interface ClienteState {
   clientes: Cliente[];
   isLoading: boolean;
+  error: string | null;
 }
 
 interface ClienteActions {
@@ -13,66 +18,74 @@ interface ClienteActions {
   getById: (id: string) => Cliente | undefined;
   getExternos: () => Cliente[];
   getInternos: () => Cliente[];
-  create: (data: ClienteFormData) => Cliente;
-  update: (id: string, data: Partial<ClienteFormData>) => Cliente | undefined;
-  remove: (id: string) => boolean;
-  setLoading: (loading: boolean) => void;
+  fetchAll: () => Promise<void>;
+  create: (data: ClienteFormData) => Promise<Cliente | undefined>;
+  update: (id: string, data: Partial<ClienteFormData>) => Promise<Cliente | undefined>;
+  remove: (id: string) => Promise<boolean>;
 }
 
 type ClienteStore = ClienteState & ClienteActions;
 
 export const useClienteStore = create<ClienteStore>((set, get) => ({
-  clientes: mockClientes,
+  clientes: [],
   isLoading: false,
+  error: null,
 
   getAll: () => get().clientes.filter((c) => c.ativo),
 
-  getById: (id: string) => get().clientes.find((c) => c.id === id),
+  getById: (id) => get().clientes.find((c) => c.id === id),
 
-  getExternos: () =>
-    get().clientes.filter((c) => c.origem === "externo" && c.ativo),
+  getExternos: () => get().clientes.filter((c) => c.ativo && c.origem === "externo"),
 
   getInternos: () =>
-    get().clientes.filter((c) => c.origem !== "externo" && c.ativo),
+    get().clientes.filter(
+      (c) => c.ativo && (c.origem === "interno" || c.origem === "investimento_interno"),
+    ),
 
-  create: (data: ClienteFormData) => {
-    const newCliente: Cliente = {
-      ...data,
-      id: uuidv4(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    set((state) => ({
-      clientes: [...state.clientes, newCliente],
-    }));
-    return newCliente;
-  },
-
-  update: (id: string, data: Partial<ClienteFormData>) => {
-    let updated: Cliente | undefined;
-    set((state) => ({
-      clientes: state.clientes.map((c) => {
-        if (c.id === id) {
-          updated = { ...c, ...data, updatedAt: new Date() };
-          return updated;
-        }
-        return c;
-      }),
-    }));
-    return updated;
-  },
-
-  remove: (id: string) => {
-    const exists = get().clientes.some((c) => c.id === id);
-    if (exists) {
-      set((state) => ({
-        clientes: state.clientes.map((c) =>
-          c.id === id ? { ...c, ativo: false, updatedAt: new Date() } : c
-        ),
-      }));
+  fetchAll: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const data = await clienteService.getAll();
+      set({ clientes: deserializeList(data), isLoading: false });
+    } catch (err) {
+      set({ error: toError(err), isLoading: false });
     }
-    return exists;
   },
 
-  setLoading: (loading: boolean) => set({ isLoading: loading }),
+  create: async (data) => {
+    try {
+      const novo = await clienteService.create(data);
+      const deserialized = deserialize(novo);
+      set((state) => ({ clientes: [...state.clientes, deserialized] }));
+      return deserialized;
+    } catch (err) {
+      set({ error: toError(err) });
+      return undefined;
+    }
+  },
+
+  update: async (id, data) => {
+    try {
+      const updated = await clienteService.update(id, data);
+      const deserialized = deserialize(updated);
+      set((state) => ({
+        clientes: state.clientes.map((c) => (c.id === id ? deserialized : c)),
+      }));
+      return deserialized;
+    } catch (err) {
+      set({ error: toError(err) });
+      return undefined;
+    }
+  },
+
+  remove: async (id) => {
+    try {
+      await clienteService.remove(id);
+      set((state) => ({ clientes: state.clientes.filter((c) => c.id !== id) }));
+      return true;
+    } catch (err) {
+      set({ error: toError(err) });
+      return false;
+    }
+  },
 }));
