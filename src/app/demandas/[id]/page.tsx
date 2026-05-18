@@ -77,6 +77,10 @@ const estagioVariantMap: Record<EstagioIdeia, BadgeVariant> = {
   prototipo: "warning",
   mvp: "primary",
   escala: "success",
+  critico: "danger",
+  alto: "warning",
+  medio: "info",
+  baixo: "secondary",
 };
 
 interface DemandaDetailPageProps {
