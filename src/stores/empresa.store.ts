@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import type { Empresa, EmpresaFormData } from "@/interfaces/empresa.interface";
 import { empresaService } from "@/services/empresa.service";
-import { deserialize, deserializeList } from "@/lib/deserialize";
 import { ApiError } from "@/lib/api-client";
 
 const toError = (err: unknown): string =>
@@ -37,7 +36,7 @@ export const useEmpresaStore = create<EmpresaStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const data = await empresaService.getAll();
-      set({ empresas: deserializeList(data), isLoading: false });
+      set({ empresas: data, isLoading: false });
     } catch (err) {
       set({ error: toError(err), isLoading: false });
     }
@@ -46,9 +45,8 @@ export const useEmpresaStore = create<EmpresaStore>((set, get) => ({
   create: async (data) => {
     try {
       const nova = await empresaService.create(data);
-      const deserialized = deserialize(nova);
-      set((state) => ({ empresas: [...state.empresas, deserialized] }));
-      return deserialized;
+      set((state) => ({ empresas: [...state.empresas, nova] }));
+      return nova;
     } catch (err) {
       set({ error: toError(err) });
       return undefined;
@@ -58,11 +56,10 @@ export const useEmpresaStore = create<EmpresaStore>((set, get) => ({
   update: async (id, data) => {
     try {
       const updated = await empresaService.update(id, data);
-      const deserialized = deserialize(updated);
       set((state) => ({
-        empresas: state.empresas.map((e) => (e.id === id ? deserialized : e)),
+        empresas: state.empresas.map((e) => (e.id === id ? updated : e)),
       }));
-      return deserialized;
+      return updated;
     } catch (err) {
       set({ error: toError(err) });
       return undefined;

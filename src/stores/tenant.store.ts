@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import type { Tenant, TenantFormData } from "@/interfaces/tenant.interface";
 import { tenantService } from "@/services/tenant.service";
-import { deserialize, deserializeList } from "@/lib/deserialize";
 import { ApiError } from "@/lib/api-client";
 
 const toError = (err: unknown): string =>
@@ -46,7 +45,7 @@ export const useTenantStore = create<TenantStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const data = await tenantService.getAll();
-      set({ tenants: deserializeList(data), isLoading: false });
+      set({ tenants: data, isLoading: false });
     } catch (err) {
       set({ error: toError(err), isLoading: false });
     }
@@ -55,9 +54,8 @@ export const useTenantStore = create<TenantStore>((set, get) => ({
   create: async (data) => {
     try {
       const novo = await tenantService.create(data);
-      const deserialized = deserialize(novo);
-      set((state) => ({ tenants: [...state.tenants, deserialized] }));
-      return deserialized;
+      set((state) => ({ tenants: [...state.tenants, novo] }));
+      return novo;
     } catch (err) {
       set({ error: toError(err) });
       return undefined;
@@ -67,11 +65,10 @@ export const useTenantStore = create<TenantStore>((set, get) => ({
   update: async (id, data) => {
     try {
       const updated = await tenantService.update(id, data);
-      const deserialized = deserialize(updated);
       set((state) => ({
-        tenants: state.tenants.map((t) => (t.id === id ? deserialized : t)),
+        tenants: state.tenants.map((t) => (t.id === id ? updated : t)),
       }));
-      return deserialized;
+      return updated;
     } catch (err) {
       set({ error: toError(err) });
       return undefined;

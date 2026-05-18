@@ -56,8 +56,8 @@ export const Sidebar = () => {
   const [showContextMenu, setShowContextMenu] = useState(false);
 
   // Stores
-  const { getAll: getTenants, getById: getTenant, getEmpresasByTenant } = useTenantStore();
-  const { getById: getEmpresa } = useEmpresaStore();
+  const { getAll: getTenants, getById: getTenant } = useTenantStore();
+  const { getAll: getAllEmpresas, getById: getEmpresa } = useEmpresaStore();
   const { contexto, setTenant, setUnidade, initialize, isInitialized } = useContextoStore();
   const { usuario, logout } = useAuthStore();
   const { podeAcessarModulo } = usePermissoes();
@@ -69,7 +69,10 @@ export const Sidebar = () => {
 
   const tenants = getTenants();
   const currentTenant = contexto.tenantId ? getTenant(contexto.tenantId) : null;
-  const empresasDoTenant = contexto.tenantId ? getEmpresasByTenant(contexto.tenantId) : [];
+  // Deriva empresas do tenant diretamente do empresa store (por tenantId)
+  const empresasDoTenant = getAllEmpresas().filter(
+    (e) => e.tenantId === contexto.tenantId
+  );
   const currentUnidade = contexto.unidadeId ? getEmpresa(contexto.unidadeId) : null;
 
   // Inicializa o contexto com o primeiro tenant disponível
@@ -225,28 +228,24 @@ export const Sidebar = () => {
                     )}
                   </button>
                   {/* Empresas do Tenant */}
-                  {empresasDoTenant.map((empresaId) => {
-                    const empresa = getEmpresa(empresaId);
-                    if (!empresa) return null;
-                    return (
-                      <button
-                        key={empresaId}
-                        onClick={() => handleSelectUnidade(empresaId)}
-                        className={cn(
-                          "w-full flex items-center justify-between gap-2 px-2 py-2 rounded-md text-sm",
-                          "transition-colors",
-                          contexto.unidadeId === empresaId
-                            ? "bg-cyan-500/10 text-cyan-400"
-                            : "text-slate-300 hover:bg-slate-700/50"
-                        )}
-                      >
-                        <span className="truncate">{empresa.nome}</span>
-                        {contexto.unidadeId === empresaId && (
-                          <Check className="h-4 w-4 flex-shrink-0" />
-                        )}
-                      </button>
-                    );
-                  })}
+                  {empresasDoTenant.map((empresa) => (
+                    <button
+                      key={empresa.id}
+                      onClick={() => handleSelectUnidade(empresa.id)}
+                      className={cn(
+                        "w-full flex items-center justify-between gap-2 px-2 py-2 rounded-md text-sm",
+                        "transition-colors",
+                        contexto.unidadeId === empresa.id
+                          ? "bg-cyan-500/10 text-cyan-400"
+                          : "text-slate-300 hover:bg-slate-700/50"
+                      )}
+                    >
+                      <span className="truncate">{empresa.nome}</span>
+                      {contexto.unidadeId === empresa.id && (
+                        <Check className="h-4 w-4 flex-shrink-0" />
+                      )}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}

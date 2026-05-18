@@ -18,6 +18,14 @@ export const estagioIdeiaEnum = z.enum([
   "escala",
 ]);
 
+// Valores usados pelo FormOperacional para nível de impacto
+export const impactoOperacionalEnum = z.enum([
+  "critico",
+  "alto",
+  "medio",
+  "baixo",
+]);
+
 export const horizonteInovacaoEnum = z.enum([
   "h1_curto_prazo",
   "h2_medio_prazo",
@@ -44,7 +52,7 @@ export const demandaSchema = z
       .min(5, "O título deve ter pelo menos 5 caracteres")
       .max(200, "O título deve ter no máximo 200 caracteres"),
 
-    estagioIdeia: estagioIdeiaEnum,
+    estagioIdeia: z.union([estagioIdeiaEnum, impactoOperacionalEnum]),
 
     problemaResolver: z
       .string()

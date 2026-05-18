@@ -75,6 +75,14 @@ export const FormOperacional = ({ empresaId, empresaNome, redirectTo }: FormOper
     }
 
     updateStatus(demanda.id, "em_analise");
+
+    // Integração Bitrix: criar card no pipeline (falha silenciosa)
+    fetch("/api/demanda", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ titulo: data.titulo, nomeProponente: data.nomeProponente }),
+    }).catch((err) => console.error("[Bitrix] Falha ao criar card:", err));
+
     toast.success("Demanda de produtividade registrada!", {
       description: "Sua demanda foi encaminhada para análise.",
     });

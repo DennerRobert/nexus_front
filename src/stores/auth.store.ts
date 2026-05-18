@@ -4,6 +4,8 @@ import type { Usuario, LoginFormData } from "@/interfaces/usuario.interface";
 import { authService } from "@/services/auth.service";
 import { deserialize } from "@/lib/deserialize";
 
+const TOKEN_KEY = "sgpi_token";
+
 interface AuthState {
   usuario: Usuario | null;
   isAuthenticated: boolean;
@@ -35,8 +37,12 @@ export const useAuthStore = create<AuthStore>()(
       login: async (data: LoginFormData) => {
         set({ isLoading: true, error: null });
         try {
-          const { usuario } = await authService.login(data);
+          const { usuario, token } = await authService.login(data);
           const deserialized = deserialize(usuario);
+          // Persiste o token para uso nas requisições subsequentes
+          if (typeof window !== "undefined") {
+            localStorage.setItem(TOKEN_KEY, token);
+          }
           set({ usuario: deserialized, isAuthenticated: true, isLoading: false });
           return true;
         } catch (err) {
@@ -47,6 +53,9 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       logout: async () => {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(TOKEN_KEY);
+        }
         set({ usuario: null, isAuthenticated: false, error: null });
         void authService.logout().catch(() => {});
       },
@@ -59,14 +68,12 @@ export const useAuthStore = create<AuthStore>()(
 
       clearError: () => set({ error: null }),
 
-      // Atualização local de perfil (sem backend por ora)
       atualizarPerfil: (data) => {
         const { usuario } = get();
         if (!usuario) return;
         set({ usuario: { ...usuario, ...data, updatedAt: new Date() } });
       },
 
-      // Alteração local de senha (sem backend por ora)
       alterarSenha: (senhaAtual, novaSenha) => {
         const { usuario } = get();
         if (!usuario || usuario.senha !== senhaAtual) return false;
@@ -76,7 +83,6 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: "sgpi-auth",
-      // Persiste apenas os dados da sessão do usuário
       partialize: (state) => ({
         usuario: state.usuario,
         isAuthenticated: state.isAuthenticated,

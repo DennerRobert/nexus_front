@@ -451,6 +451,40 @@ export const EmpresaFormModal = ({
           </div>
         </section>
 
+        {/* ─── Tipo de Formulário ────────────────────────────────────────── */}
+        <section className="space-y-3">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Tipo de Formulário
+          </h3>
+          <div className="grid grid-cols-3 gap-3">
+            {(["inovacao", "operacional", "estrategico"] as FormularioTipo[]).map((tipo) => {
+              const Icon = FORMULARIO_TIPO_ICON[tipo];
+              const isSelected = formularioTipo === tipo;
+              return (
+                <button
+                  key={tipo}
+                  type="button"
+                  onClick={() => setFormularioTipo(isSelected ? "" : tipo)}
+                  className={cn(
+                    "flex flex-col items-center gap-2 rounded-lg border p-3 text-xs transition-all",
+                    isSelected
+                      ? FORMULARIO_TIPO_COLOR[tipo]
+                      : "border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600 hover:text-slate-300"
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span className="text-center font-medium leading-tight">
+                    {FORMULARIO_TIPO_LABELS[tipo]}
+                  </span>
+                  <span className="text-center text-[10px] leading-tight opacity-70">
+                    {FORMULARIO_TIPO_DESCRICAO[tipo]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
         {/* ─── Campos customizados (somente no modo edição) ──────────────── */}
         {isEditing && camposFormulario.length > 0 && (
           <section className="space-y-4">

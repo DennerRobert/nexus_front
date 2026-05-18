@@ -1,11 +1,21 @@
 /**
  * Cliente HTTP centralizado para todas as chamadas de API.
  * Em mock: aponta para /api (Next.js Route Handlers).
- * Em produção (Fase 4): NEXT_PUBLIC_API_URL aponta para o backend Django.
+ * Em produção: NEXT_PUBLIC_API_URL aponta para o backend (nexus-api).
  */
 import { toast } from "sonner";
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
+
+/** Shape da resposta paginada do nexus-api */
+export interface Paginated<T> {
+  items: T[];
+  total: number;
+  current_page: number;
+  per_page: number;
+}
+
+const TOKEN_KEY = "sgpi_token";
 
 const HTTP_ERROR_MESSAGES: Record<number, string> = {
   400: "Dados inválidos. Verifique os campos e tente novamente.",
@@ -68,12 +78,33 @@ async function handleResponse<T>(res: Response, silentError = false): Promise<T>
   throw new ApiError(res.status, message, errorData);
 }
 
+function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+function getTenantId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("sgpi-auth");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { state?: { usuario?: { tenantId?: string } } };
+    return parsed?.state?.usuario?.tenantId ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function buildHeaders(withBody = false): HeadersInit {
   const headers: HeadersInit = {};
   if (withBody) headers["Content-Type"] = "application/json";
-  // Fase 4: injeta JWT aqui
-  // const token = typeof window !== "undefined" ? localStorage.getItem("sgpi_token") : null;
-  // if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const token = getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const tenantId = getTenantId();
+  if (tenantId) headers["X-Tenant-ID"] = tenantId;
+
   return headers;
 }
 

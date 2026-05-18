@@ -23,6 +23,7 @@ export interface Empresa {
   formularioTipo?: FormularioTipo;
   setor?: string;
   dadosAdicionais?: Record<string, string>;
+  tenantId?: string;
   createdAt: Date;
   updatedAt: Date;
 }

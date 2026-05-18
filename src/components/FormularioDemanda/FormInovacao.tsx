@@ -82,6 +82,14 @@ export const FormInovacao = ({ empresaId, empresaNome, redirectTo }: FormInovaca
     }
 
     updateStatus(demanda.id, "em_analise");
+
+    // Integração Bitrix: criar card no pipeline (falha silenciosa)
+    fetch("/api/demanda", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ titulo: data.titulo, nomeProponente: data.nomeProponente }),
+    }).catch((err) => console.error("[Bitrix] Falha ao criar card:", err));
+
     toast.success("Ideia de inovação submetida com sucesso!", {
       description: "Você será notificado sobre o progresso da avaliação.",
     });

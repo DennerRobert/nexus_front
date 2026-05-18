@@ -89,6 +89,14 @@ export const FormEstrategico = ({ empresaId, empresaNome, redirectTo }: FormEstr
     }
 
     updateStatus(demanda.id, "em_analise");
+
+    // Integração Bitrix: criar card no pipeline (falha silenciosa)
+    fetch("/api/demanda", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ titulo: data.titulo, nomeProponente: data.nomeProponente }),
+    }).catch((err) => console.error("[Bitrix] Falha ao criar card:", err));
+
     toast.success("Iniciativa estratégica registrada!", {
       description: "Encaminhada para análise pelo comitê estratégico.",
     });

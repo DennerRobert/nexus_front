@@ -102,10 +102,7 @@ export const useDemandaStore = create<DemandaStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const data = await demandaService.getAll();
-      set({
-        demandas: deserializeList(data, DEMANDA_DATE_FIELDS).map(normalizarDemanda),
-        isLoading: false,
-      });
+      set({ demandas: data.map(normalizarDemanda), isLoading: false });
     } catch (err) {
       set({ error: toError(err), isLoading: false });
     }
@@ -113,12 +110,9 @@ export const useDemandaStore = create<DemandaStore>((set, get) => ({
 
   create: async (data, solicitanteId) => {
     try {
-      const nova = await demandaService.create({ ...data, solicitanteId });
-      const deserialized = normalizarDemanda(
-        deserialize(nova, DEMANDA_DATE_FIELDS),
-      );
-      set((state) => ({ demandas: [...state.demandas, deserialized] }));
-      return deserialized;
+      const nova = normalizarDemanda(await demandaService.create({ ...data, solicitanteId }));
+      set((state) => ({ demandas: [...state.demandas, nova] }));
+      return nova;
     } catch (err) {
       set({ error: toError(err) });
       return undefined;
@@ -127,12 +121,11 @@ export const useDemandaStore = create<DemandaStore>((set, get) => ({
 
   update: async (id, data) => {
     try {
-      const updated = await demandaService.update(id, data);
-      const deserialized = normalizarDemanda(deserialize(updated, DEMANDA_DATE_FIELDS));
+      const updated = normalizarDemanda(await demandaService.update(id, data));
       set((state) => ({
-        demandas: state.demandas.map((d) => (d.id === id ? deserialized : d)),
+        demandas: state.demandas.map((d) => (d.id === id ? updated : d)),
       }));
-      return deserialized;
+      return updated;
     } catch (err) {
       set({ error: toError(err) });
       return undefined;
