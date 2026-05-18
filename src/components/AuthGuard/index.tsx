@@ -3,6 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/stores/auth.store";
+import { IS_DEMO, DEMO_USER } from "@/lib/demo-mode";
 import { cn } from "@/utils/cn";
 import { Loader2 } from "lucide-react";
 
@@ -20,7 +21,20 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
 
   const isPublicRoute = PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
 
+  // Em modo demo: autentica automaticamente com usuário demo
   useEffect(() => {
+    if (IS_DEMO && !isAuthenticated) {
+      useAuthStore.setState({
+        usuario: DEMO_USER,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (IS_DEMO) return; // demo não precisa de redirect para login
+
     // Se não está carregando e não está autenticado e não é rota pública
     if (!isLoading && !isAuthenticated && !isPublicRoute) {
       router.push("/login");
