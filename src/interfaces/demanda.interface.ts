@@ -15,7 +15,11 @@ export type EstagioIdeia =
   | "validacao"
   | "prototipo"
   | "mvp"
-  | "escala";
+  | "escala"
+  | "critico"
+  | "alto"
+  | "medio"
+  | "baixo";
 
 export type HorizonteInovacao =
   | "h1_curto_prazo"
@@ -107,6 +111,10 @@ export const ESTAGIO_IDEIA_LABELS: Record<EstagioIdeia, string> = {
   prototipo: "Protótipo desenvolvido",
   mvp: "MVP (Produto Mínimo Viável)",
   escala: "Pronto para escala",
+  critico: "Crítico",
+  alto: "Alto impacto",
+  medio: "Médio impacto",
+  baixo: "Baixo impacto",
 };
 
 export const HORIZONTE_INOVACAO_LABELS: Record<HorizonteInovacao, string> = {
