@@ -42,9 +42,9 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, modulo: "dashboard" },
   { href: "/demandas", label: "Demandas", icon: FileText, modulo: "demandas" },
-  { href: "/projetos", label: "Projetos", icon: FolderKanban, modulo: "projetos", emDesenvolvimento: true },
-  { href: "/produtos", label: "Produtos", icon: Package, modulo: "produtos", emDesenvolvimento: true },
-  { href: "/squads", label: "Squads", icon: Users, modulo: "squads", emDesenvolvimento: true },
+  { href: "/projetos", label: "Projetos", icon: FolderKanban, modulo: "projetos" },
+  { href: "/produtos", label: "Produtos", icon: Package, modulo: "produtos" },
+  { href: "/squads", label: "Squads", icon: Users, modulo: "squads" },
   { href: "/colaboradores", label: "Colaboradores", icon: UserCircle, modulo: "colaboradores" },
   { href: "/empresas", label: "Empresas", icon: Building2, modulo: "empresas" },
   { href: "/clientes", label: "Clientes", icon: Briefcase, modulo: "clientes" },
